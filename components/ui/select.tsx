@@ -23,14 +23,14 @@ function SelectTrigger({ className, children, ...props }: React.ComponentProps<t
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       className={cn(
-        "ring-offset-background focus:ring-ring flex h-11 w-full items-center justify-between rounded-xl border border-border bg-white px-3 py-2 text-sm shadow-xs focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        "ring-offset-background focus:ring-ring flex h-11 w-full items-center justify-between rounded-xl border border-border bg-white px-3 py-2 pr-3.5 text-sm shadow-xs focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       {...props}
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <ChevronDown className="h-4 w-4 opacity-60" />
+        <ChevronDown className="mr-0.5 h-4 w-4 shrink-0 opacity-60" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );

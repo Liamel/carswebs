@@ -198,7 +198,7 @@ export function BookingForm({ locale, labels, models, defaultModel }: BookingFor
   };
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} className="grid gap-5 sm:gap-4">
       <input type="hidden" name="locale" value={locale} />
 
       <div className="grid gap-2">
@@ -206,7 +206,7 @@ export function BookingForm({ locale, labels, models, defaultModel }: BookingFor
         <Input id="name" name="name" required />
         <FieldError errors={state.fieldErrors?.name} />
       </div>
-      <div className="grid gap-2 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         <div className="grid gap-2">
           <Label htmlFor="email">{labels.emailLabel}</Label>
           <Input id="email" name="email" type="email" required />
@@ -218,14 +218,14 @@ export function BookingForm({ locale, labels, models, defaultModel }: BookingFor
           <FieldError errors={state.fieldErrors?.phone} />
         </div>
       </div>
-      <div className="grid gap-2 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3 md:items-start">
         <div className="grid gap-2">
           <Label htmlFor="preferredModel">{labels.preferredModelLabel}</Label>
           <select
             id="preferredModel"
             name="preferredModel"
             defaultValue={defaultModel ?? ""}
-            className="h-11 rounded-xl border border-border bg-white px-3 text-sm shadow-xs"
+            className="form-native-select h-11 rounded-xl border border-border px-3 text-sm shadow-xs"
           >
             <option value="">{labels.anyModelOption}</option>
             {models.map((model) => (
@@ -241,6 +241,7 @@ export function BookingForm({ locale, labels, models, defaultModel }: BookingFor
           <Input
             id="preferredDate"
             type="date"
+            className="bg-white pr-10"
             min={minimumPreferredDate}
             value={preferredDate}
             onChange={(event) => handlePreferredDateChange(event.target.value)}
@@ -253,7 +254,7 @@ export function BookingForm({ locale, labels, models, defaultModel }: BookingFor
             id="preferredTime"
             value={preferredTime}
             onChange={(event) => setPreferredTime(event.target.value)}
-            className="h-11 rounded-xl border border-border bg-white px-3 text-sm shadow-xs"
+            className="form-native-select h-11 rounded-xl border border-border px-3 text-sm shadow-xs"
             required
           >
             <option value="" disabled>

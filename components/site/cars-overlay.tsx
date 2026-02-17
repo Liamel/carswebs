@@ -110,8 +110,8 @@ export function CarsOverlay({ locale, cars, labels }: CarsOverlayProps) {
       <DialogDescription className="sr-only">{labels.dialogDescription}</DialogDescription>
       <DialogIconClose aria-label={labels.closeAriaLabel} />
 
-      <div className="grid h-full min-h-0 grid-rows-[auto_1fr] bg-[#f3f5f7]">
-        <div className="border-b border-border/70 bg-white/95 px-4 py-4 pr-16 sm:px-6 sm:pr-20">
+      <div className="grid h-full min-h-0 rounded-2xl grid-rows-[auto_1fr] bg-[#f3f5f7]">
+        <div className="border-b border-border/70 bg-white/95 rounded-2xl px-4 py-4 pr-16 sm:px-6 sm:pr-20">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">{labels.eyebrow}</p>

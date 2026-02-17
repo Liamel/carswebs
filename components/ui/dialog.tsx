@@ -78,7 +78,7 @@ function DialogIconClose({ className, ...props }: React.ComponentProps<typeof Di
     <DialogPrimitive.Close
       data-slot="dialog-icon-close"
       className={cn(
-        "ring-offset-background focus:ring-ring absolute top-4 right-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 transition hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2",
+        "ring-offset-background focus:ring-ring absolute top-5.5 right-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 transition hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2",
         className,
       )}
       {...props}

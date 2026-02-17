@@ -31,7 +31,7 @@ export function LanguageSwitcher({ currentLocale, ariaLabel }: LanguageSwitcherP
             href={href}
             className={cn(
               "rounded-full px-2.5 py-1 text-xs font-semibold transition",
-              isActive ? "bg-emerald-600 text-white hover:bg-emerald-600" : "text-muted-foreground hover:text-foreground",
+              isActive ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground",
             )}
           >
             {LOCALE_DISPLAY_NAME[locale]}
