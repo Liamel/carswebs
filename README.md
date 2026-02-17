@@ -1,6 +1,6 @@
 # Astra Motors (Next.js + Drizzle + Auth.js)
 
-Production-ready marketing website and in-app CMS admin panel for a car brand.
+Website for showcasing car inventory. Production-ready marketing site and in-app CMS admin panel for a car brand.
 
 ## Stack
 
@@ -137,4 +137,3 @@ pnpm dev
 - Non-allowlisted emails are denied at sign-in.
 - Allowlisted emails are upserted into `users` with role `ADMIN`.
 - `/admin/*` protected routes require valid session and allowlisted admin email.
-
