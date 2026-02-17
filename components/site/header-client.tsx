@@ -52,7 +52,7 @@ export function SiteHeaderClient({ cars }: SiteHeaderClientProps) {
             <DialogTrigger asChild>
               <button
                 type="button"
-                className="text-sm text-muted-foreground transition hover:text-foreground"
+                className="text-sm font-semibold text-foreground"
                 aria-haspopup="dialog"
                 aria-label="Open cars showcase"
               >
@@ -61,7 +61,7 @@ export function SiteHeaderClient({ cars }: SiteHeaderClientProps) {
             </DialogTrigger>
 
             {navItems.map((item) => (
-              <Link key={item.href} href={item.href} className="text-sm text-muted-foreground transition hover:text-foreground">
+              <Link key={item.href} href={item.href} className="text-sm font-semibold text-foreground">
                 {item.label}
               </Link>
             ))}

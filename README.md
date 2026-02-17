@@ -28,7 +28,7 @@ Website for showcasing car inventory. Production-ready marketing site and in-app
 - Server-side Zod validation
 - Booking status: `PENDING | CONFIRMED | CANCELLED`
 - DB persistence in `bookings`
-- Server-side `console.log("email sent", ...)` after create
+- Optional Telegram group notification after create (`TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`)
 
 ### Admin CMS (`/admin`, protected)
 
@@ -58,6 +58,12 @@ Required:
 - `AUTH_GOOGLE_SECRET`
 - `ADMIN_EMAIL_ALLOWLIST` (comma-separated emails)
 - `BLOB_READ_WRITE_TOKEN` (for homepage slider image uploads)
+
+Optional for booking notifications:
+
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID` (group/supergroup chat id, often looks like `-100...`)
+- `TELEGRAM_MESSAGE_THREAD_ID` (only if posting into a specific topic thread)
 
 ## Local setup
 

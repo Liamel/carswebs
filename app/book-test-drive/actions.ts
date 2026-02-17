@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { searchCarsBySlugOrName } from "@/lib/db/queries";
 import { bookings } from "@/lib/db/schema";
+import { sendTelegramNewBookingNotification } from "@/lib/notifications/telegram";
 import { bookingSchema } from "@/lib/validations/booking";
 
 export type BookingActionState = {
@@ -48,6 +49,7 @@ export async function submitBookingAction(
   const selectedCar = parsed.data.preferredModel
     ? await searchCarsBySlugOrName(parsed.data.preferredModel)
     : null;
+  const preferredDateTime = new Date(parsed.data.preferredDateTime);
 
   const [created] = await db
     .insert(bookings)
@@ -56,18 +58,27 @@ export async function submitBookingAction(
       name: parsed.data.name,
       email: parsed.data.email,
       phone: parsed.data.phone,
-      preferredDateTime: new Date(parsed.data.preferredDateTime),
+      preferredDateTime,
       location: parsed.data.location,
       note: parsed.data.note || null,
       status: "PENDING",
     })
     .returning({ id: bookings.id });
 
-  console.log("email sent", {
-    to: parsed.data.email,
-    bookingId: created.id,
-    model: selectedCar?.name ?? "No specific model",
-  });
+  try {
+    await sendTelegramNewBookingNotification({
+      bookingId: created.id,
+      name: parsed.data.name,
+      email: parsed.data.email,
+      phone: parsed.data.phone,
+      modelName: selectedCar?.name ?? null,
+      preferredDateTime,
+      location: parsed.data.location,
+      note: parsed.data.note || null,
+    });
+  } catch (error) {
+    console.error("Failed to send Telegram booking notification", error);
+  }
 
   redirect(`/book-test-drive/success?booking=${created.id}`);
 }

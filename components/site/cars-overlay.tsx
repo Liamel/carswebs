@@ -92,7 +92,7 @@ export function CarsOverlay({ cars }: CarsOverlayProps) {
       <DialogIconClose aria-label="Close cars navigation" />
 
       <div className="grid h-full min-h-0 grid-rows-[auto_1fr] bg-[#f3f5f7]">
-        <div className="border-b border-border/70 bg-white/95 px-4 py-4 sm:px-6">
+        <div className="border-b border-border/70 bg-white/95 px-4 py-4 pr-16 sm:px-6 sm:pr-20">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">Model showcase</p>
