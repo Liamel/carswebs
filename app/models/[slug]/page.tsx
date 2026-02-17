@@ -20,6 +20,7 @@ function formatPrice(priceFrom: number) {
 
 type ModelDetailPageProps = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ search?: string; type?: string | string[]; featured?: string }>;
 };
 
 export async function generateMetadata({ params }: ModelDetailPageProps): Promise<Metadata> {
@@ -36,18 +37,44 @@ export async function generateMetadata({ params }: ModelDetailPageProps): Promis
   };
 }
 
-export default async function ModelDetailPage({ params }: ModelDetailPageProps) {
-  const { slug } = await params;
+function appendMultiValue(searchParams: URLSearchParams, key: string, value: string | string[] | undefined) {
+  if (!value) {
+    return;
+  }
+
+  const values = Array.isArray(value) ? value : [value];
+
+  for (const entry of values.map((item) => item.trim()).filter(Boolean)) {
+    searchParams.append(key, entry);
+  }
+}
+
+export default async function ModelDetailPage({ params, searchParams }: ModelDetailPageProps) {
+  const [{ slug }, resolvedSearchParams] = await Promise.all([params, searchParams]);
   const car = await getCarBySlug(slug);
 
   if (!car) {
     notFound();
   }
 
+  const modelsQueryParams = new URLSearchParams();
+
+  if (typeof resolvedSearchParams.search === "string" && resolvedSearchParams.search.trim()) {
+    modelsQueryParams.set("search", resolvedSearchParams.search.trim());
+  }
+
+  appendMultiValue(modelsQueryParams, "type", resolvedSearchParams.type);
+
+  if (resolvedSearchParams.featured === "1") {
+    modelsQueryParams.set("featured", "1");
+  }
+
+  const backToModelsHref = modelsQueryParams.toString() ? `/models?${modelsQueryParams.toString()}` : "/models";
+
   return (
     <MarketingLayout>
       <section className="container-shell py-12">
-        <Link className="text-sm text-muted-foreground hover:text-foreground" href="/models">
+        <Link className="text-sm text-muted-foreground hover:text-foreground" href={backToModelsHref}>
           Back to models
         </Link>
         <div className="mt-4 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
@@ -56,8 +83,8 @@ export default async function ModelDetailPage({ params }: ModelDetailPageProps) 
               <Badge className="mb-4" variant="secondary">
                 {car.bodyType}
               </Badge>
-              <h1 className="font-display text-4xl font-semibold">{car.name}</h1>
-              <p className="mt-4 max-w-2xl text-muted-foreground">{car.description}</p>
+              <h1 className="font-display text-4xl font-semibold capitalize">{car.name}</h1>
+              <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">{car.description}</p>
               <p className="mt-6 text-xl font-semibold">From {formatPrice(car.priceFrom)}</p>
               <Link href={`/book-test-drive?model=${car.slug}`} className="mt-6 inline-flex">
                 <Button size="lg">Book a test drive</Button>
@@ -81,7 +108,7 @@ export default async function ModelDetailPage({ params }: ModelDetailPageProps) 
             </div>
           </div>
 
-          <Card>
+          <Card className="bg-white/92">
             <CardHeader>
               <CardTitle className="font-display text-2xl">Key specs</CardTitle>
             </CardHeader>

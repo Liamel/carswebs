@@ -15,8 +15,8 @@ Website for showcasing car inventory. Production-ready marketing site and in-app
 
 ### Public site
 
-- `/` Home page with CMS-driven hero/highlights and featured models
-- `/models` Model listing with search + body type filters
+- `/` Home page with CMS-driven hero/highlights, featured models, and DB-backed homepage slider
+- `/models` Model listing with URL-based sidebar filters (`type` multi-select + featured toggle)
 - `/models/[slug]` Model detail page with specs and gallery placeholders
 - `/book-test-drive` Booking flow with server-side validation + DB persistence
 - `/book-test-drive/success` Success page
@@ -37,8 +37,10 @@ Website for showcasing car inventory. Production-ready marketing site and in-app
 - Server-side route protection (no client-only gating)
 - Dashboard KPIs
 - Cars CRUD
+- Cars media upload (Vercel Blob) + structured specs/image builders (no JSON editing)
 - Bookings list + status update
-- Homepage content CMS (hero + highlights)
+- Homepage content CMS (hero + repeatable highlights form, no JSON editing)
+- Homepage slider CRUD with image upload to Vercel Blob
 
 ## Environment variables
 
@@ -55,6 +57,7 @@ Required:
 - `AUTH_GOOGLE_ID`
 - `AUTH_GOOGLE_SECRET`
 - `ADMIN_EMAIL_ALLOWLIST` (comma-separated emails)
+- `BLOB_READ_WRITE_TOKEN` (for homepage slider image uploads)
 
 ## Local setup
 
@@ -81,6 +84,14 @@ Seed sample cars + homepage content:
 ```bash
 pnpm db:seed
 ```
+
+## Homepage slider storage and cache revalidation
+
+- Slider entries are stored in `homepage_slides` (title/description/image URL/CTA/sort order/isActive).
+- Uploaded slider images are stored in Vercel Blob; only the returned public URL is saved in Postgres.
+- Slider create/update/delete actions call `revalidatePath("/")` and `revalidateTag("homepage-slides")`.
+- Car mutations call `revalidateTag("cars")` so header mega-menu and model filter data refresh after admin edits.
+- Car image uploads also use Vercel Blob and persist only URL arrays in `cars.images`.
 
 Run dev server:
 

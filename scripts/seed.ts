@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { db } from "../lib/db";
-import { cars, content } from "../lib/db/schema";
+import { cars, content, homepageSlides } from "../lib/db/schema";
 
 const sampleCars = [
   {
@@ -88,6 +88,42 @@ const homepageContent = {
   ],
 };
 
+const sampleSlides = [
+  {
+    id: "a06260e2-b58a-4ba3-9d7a-8430f6ac2b2f",
+    title: "Astra Terra X",
+    description: "Confident SUV comfort built for every weekday and every weekend.",
+    imageUrl:
+      "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1600&q=80",
+    ctaLabel: "Explore Terra X",
+    ctaHref: "/models/astra-terra-x",
+    sortOrder: 0,
+    isActive: true,
+  },
+  {
+    id: "2585b170-2ec9-4f65-9b27-4720b4245fd7",
+    title: "Astra Urban E",
+    description: "Compact electric-ready crossover designed for city agility.",
+    imageUrl:
+      "https://images.unsplash.com/photo-1549924231-f129b911e442?auto=format&fit=crop&w=1600&q=80",
+    ctaLabel: "See Urban E",
+    ctaHref: "/models/astra-urban-e",
+    sortOrder: 1,
+    isActive: true,
+  },
+  {
+    id: "b8ac8451-f7dd-42eb-9c9c-04ba3a6a9e2f",
+    title: "Astra Voyager 7",
+    description: "Seven-seat versatility with road-trip range and premium safety tech.",
+    imageUrl:
+      "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1600&q=80",
+    ctaLabel: "View Voyager 7",
+    ctaHref: "/models/astra-voyager-7",
+    sortOrder: 2,
+    isActive: true,
+  },
+] as const;
+
 async function seed() {
   for (const car of sampleCars) {
     await db
@@ -125,6 +161,28 @@ async function seed() {
         updatedAt: new Date(),
       },
     });
+
+  for (const slide of sampleSlides) {
+    await db
+      .insert(homepageSlides)
+      .values({
+        ...slide,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: homepageSlides.id,
+        set: {
+          title: slide.title,
+          description: slide.description,
+          imageUrl: slide.imageUrl,
+          ctaLabel: slide.ctaLabel,
+          ctaHref: slide.ctaHref,
+          sortOrder: slide.sortOrder,
+          isActive: slide.isActive,
+          updatedAt: new Date(),
+        },
+      });
+  }
 
   console.log("Seed completed");
 }

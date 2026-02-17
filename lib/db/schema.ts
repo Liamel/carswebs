@@ -8,6 +8,7 @@ import {
   serial,
   text,
   timestamp,
+  uuid,
   uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -76,6 +77,19 @@ export const content = pgTable(
   }),
 );
 
+export const homepageSlides = pgTable("homepage_slides", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url").notNull(),
+  ctaLabel: varchar("cta_label", { length: 40 }),
+  ctaHref: varchar("cta_href", { length: 255 }),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const carsRelations = relations(cars, ({ many }) => ({
   bookings: many(bookings),
 }));
@@ -91,4 +105,5 @@ export type User = typeof users.$inferSelect;
 export type Car = typeof cars.$inferSelect;
 export type Booking = typeof bookings.$inferSelect;
 export type ContentEntry = typeof content.$inferSelect;
+export type HomepageSlide = typeof homepageSlides.$inferSelect;
 export type BookingStatus = (typeof bookingStatusEnum.enumValues)[number];

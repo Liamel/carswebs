@@ -1,24 +1,25 @@
-import { and, eq } from "drizzle-orm";
 import { type NextAuthOptions, getServerSession } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 
-const adminAllowlist = new Set(
-  (process.env.ADMIN_EMAIL_ALLOWLIST ?? "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean),
-);
-
 function normalizeEmail(email: string | null | undefined) {
   return email?.trim().toLowerCase();
 }
 
+function getAdminAllowlist() {
+  return new Set(
+    (process.env.ADMIN_EMAIL_ALLOWLIST ?? "")
+      .split(/[,\n;]/)
+      .map((email) => email.trim().replace(/^['"]|['"]$/g, "").toLowerCase())
+      .filter(Boolean),
+  );
+}
+
 export function isAdminEmail(email: string | null | undefined) {
   const normalizedEmail = normalizeEmail(email);
-  return Boolean(normalizedEmail && adminAllowlist.has(normalizedEmail));
+  return Boolean(normalizedEmail && getAdminAllowlist().has(normalizedEmail));
 }
 
 export const authOptions: NextAuthOptions = {
@@ -36,24 +37,33 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user }) {
       const normalizedEmail = normalizeEmail(user.email);
 
-      if (!normalizedEmail || !isAdminEmail(normalizedEmail)) {
-        return false;
+      if (!normalizedEmail) {
+        return "/admin/login?error=MissingEmail";
       }
 
-      await db
-        .insert(users)
-        .values({
-          email: normalizedEmail,
-          name: user.name,
-          role: "ADMIN",
-        })
-        .onConflictDoUpdate({
-          target: users.email,
-          set: {
+      if (!isAdminEmail(normalizedEmail)) {
+        return "/admin/login?error=AllowlistDenied";
+      }
+
+      try {
+        await db
+          .insert(users)
+          .values({
+            email: normalizedEmail,
             name: user.name,
             role: "ADMIN",
-          },
-        });
+          })
+          .onConflictDoUpdate({
+            target: users.email,
+            set: {
+              name: user.name,
+              role: "ADMIN",
+            },
+          });
+      } catch (error) {
+        // Keep allowlisted admin login functional even if user upsert fails.
+        console.error("Admin user upsert failed during sign-in", error);
+      }
 
       return true;
     },
@@ -65,7 +75,7 @@ export const authOptions: NextAuthOptions = {
       }
 
       token.email = normalizedEmail;
-      token.role = "ADMIN";
+      token.role = isAdminEmail(normalizedEmail) ? "ADMIN" : undefined;
       return token;
     },
     async session({ session, token }) {
@@ -92,14 +102,6 @@ export async function requireAdminSession() {
   const email = normalizeEmail(session?.user?.email);
 
   if (!email || !isAdminEmail(email)) {
-    return null;
-  }
-
-  const dbUser = await db.query.users.findFirst({
-    where: and(eq(users.email, email), eq(users.role, "ADMIN")),
-  });
-
-  if (!dbUser) {
     return null;
   }
 

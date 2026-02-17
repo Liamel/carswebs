@@ -69,7 +69,7 @@ export function BookingForm({ models, defaultModel }: BookingFormProps) {
             id="preferredModel"
             name="preferredModel"
             defaultValue={defaultModel ?? ""}
-            className="h-11 rounded-xl border border-border bg-background px-3 text-sm"
+            className="h-11 rounded-xl border border-border bg-white px-3 text-sm shadow-xs"
           >
             <option value="">Any model</option>
             {models.map((model) => (

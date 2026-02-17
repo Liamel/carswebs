@@ -22,14 +22,14 @@ export default async function BookTestDrivePage({ searchParams }: BookTestDriveP
 
   return (
     <MarketingLayout>
-      <section className="container-shell py-14">
-        <h1 className="font-display text-4xl font-semibold">Book a test drive</h1>
+      <section className="container-shell py-14 md:py-16">
+        <h1 className="font-display text-4xl font-semibold tracking-tight md:text-5xl">Book a test drive</h1>
         <p className="mt-3 max-w-3xl text-muted-foreground">
           Share your preferred model and schedule. Our team will confirm your booking and walk you through available trims.
         </p>
 
         <div className="mt-8 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-          <Card>
+          <Card className="bg-white/92">
             <CardContent className="pt-6">
               <BookingForm models={models} defaultModel={params.model} />
             </CardContent>

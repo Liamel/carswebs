@@ -11,11 +11,11 @@ export const metadata: Metadata = {
 export default function ContactPage() {
   return (
     <MarketingLayout>
-      <section className="container-shell py-14">
-        <h1 className="font-display text-4xl font-semibold">Contact Astra Motors</h1>
+      <section className="container-shell py-14 md:py-16">
+        <h1 className="font-display text-4xl font-semibold tracking-tight md:text-5xl">Contact Astra Motors</h1>
         <p className="mt-3 text-muted-foreground">Speak with sales, service, or fleet advisors.</p>
         <div className="mt-8 grid gap-4 md:grid-cols-3">
-          <Card>
+          <Card className="bg-white/92">
             <CardHeader>
               <CardTitle>Sales desk</CardTitle>
             </CardHeader>
@@ -24,7 +24,7 @@ export default function ContactPage() {
               <p>+1 (555) 018-4040</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-white/92">
             <CardHeader>
               <CardTitle>Service center</CardTitle>
             </CardHeader>
@@ -33,7 +33,7 @@ export default function ContactPage() {
               <p>+1 (555) 018-4041</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-white/92">
             <CardHeader>
               <CardTitle>Visit us</CardTitle>
             </CardHeader>

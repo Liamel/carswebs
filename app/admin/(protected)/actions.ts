@@ -1,15 +1,17 @@
 "use server";
 
-import { eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { put } from "@vercel/blob";
+import { asc, eq } from "drizzle-orm";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireAdminSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { bookings, cars, content } from "@/lib/db/schema";
-import { carSchema } from "@/lib/validations/car";
+import { bookings, cars, content, homepageSlides } from "@/lib/db/schema";
 import { bookingStatusSchema } from "@/lib/validations/booking";
-import { highlightListSchema, homepageContentSchema } from "@/lib/validations/content";
+import { carSchema } from "@/lib/validations/car";
+import { homepageContentSchema } from "@/lib/validations/content";
+import { homepageSlideCreateSchema, homepageSlideUpdateSchema } from "@/lib/validations/homepage-slide";
 
 async function assertAdmin() {
   const session = await requireAdminSession();
@@ -22,30 +24,122 @@ async function assertAdmin() {
 }
 
 function parseBooleanCheckbox(value: FormDataEntryValue | null) {
-  return value === "on";
+  return value === "on" || value === "true";
 }
 
-function refreshPublicPages() {
+function buildRedirectPath(pathname: string, key: "status" | "error", value: string) {
+  const searchParams = new URLSearchParams();
+  searchParams.set(key, value);
+  return `${pathname}?${searchParams.toString()}`;
+}
+
+function sanitizeBookingsReturnPath(pathValue: FormDataEntryValue | null) {
+  const fallback = "/admin/bookings";
+  const value = typeof pathValue === "string" ? pathValue.trim() : "";
+
+  if (!value.startsWith("/admin/bookings")) {
+    return fallback;
+  }
+
+  return value;
+}
+
+function appendFlashToPath(path: string, key: "status" | "error", value: string) {
+  const [pathname, search = ""] = path.split("?");
+  const searchParams = new URLSearchParams(search);
+  searchParams.set(key, value);
+  return `${pathname}?${searchParams.toString()}`;
+}
+
+function refreshPublicPages(slugs: string[] = []) {
+  revalidateTag("cars", "max");
   revalidatePath("/");
   revalidatePath("/models");
+  revalidatePath("/sitemap.xml");
+
+  for (const slug of slugs) {
+    if (slug) {
+      revalidatePath(`/models/${slug}`);
+    }
+  }
+}
+
+function refreshHomepageSliderPages() {
+  revalidateTag("homepage-slides", "max");
+  revalidatePath("/");
+  revalidatePath("/admin/homepage-slider");
+}
+
+function getSingleFile(value: FormDataEntryValue | null) {
+  if (value instanceof File && value.size > 0) {
+    return value;
+  }
+
+  return null;
+}
+
+function toBlobFileName(file: File) {
+  const cleanedName = file.name
+    .toLowerCase()
+    .replace(/[^a-z0-9.-]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return cleanedName || `slide-${Date.now()}.jpg`;
+}
+
+async function uploadSliderImage(file: File) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return { ok: false, error: "BLOB_READ_WRITE_TOKEN is missing" } as const;
+  }
+
+  if (!file.type.startsWith("image/")) {
+    return { ok: false, error: "Image must be a valid image file" } as const;
+  }
+
+  if (file.size > 8 * 1024 * 1024) {
+    return { ok: false, error: "Image must be 8MB or smaller" } as const;
+  }
+
+  try {
+    const blob = await put(`homepage-slides/${toBlobFileName(file)}`, file, {
+      access: "public",
+      addRandomSuffix: true,
+    });
+
+    return { ok: true, url: blob.url } as const;
+  } catch {
+    return { ok: false, error: "Failed to upload image" } as const;
+  }
 }
 
 export async function createCarAction(formData: FormData) {
   await assertAdmin();
+  const rawName = formData.get("name");
 
   const parsed = carSchema.safeParse({
-    name: formData.get("name"),
-    slug: formData.get("slug"),
+    name: rawName,
+    slug: rawName,
     priceFrom: formData.get("priceFrom"),
     bodyType: formData.get("bodyType"),
     description: formData.get("description"),
     featured: parseBooleanCheckbox(formData.get("featured")),
-    specsJson: formData.get("specsJson"),
-    imagesJson: formData.get("imagesJson"),
+    specsPayload: formData.get("specsPayload"),
+    imagesPayload: formData.get("imagesPayload"),
   });
 
   if (!parsed.success) {
-    redirect("/admin/cars?error=Invalid+car+form+data");
+    const errorMessage = parsed.error.issues[0]?.message ?? "Invalid car form data";
+    redirect(`/admin/cars?error=${encodeURIComponent(errorMessage)}`);
+  }
+
+  const existingBySlug = await db.query.cars.findFirst({
+    where: eq(cars.slug, parsed.data.slug),
+    columns: { id: true },
+  });
+
+  if (existingBySlug) {
+    redirect(buildRedirectPath("/admin/cars", "error", "A car with this slug already exists"));
   }
 
   try {
@@ -56,39 +150,61 @@ export async function createCarAction(formData: FormData) {
       bodyType: parsed.data.bodyType,
       description: parsed.data.description,
       featured: parsed.data.featured,
-      specs: parsed.data.specsJson,
-      images: parsed.data.imagesJson,
+      specs: parsed.data.specsPayload,
+      images: parsed.data.imagesPayload,
     });
   } catch {
     redirect("/admin/cars?error=Could+not+create+car+(check+slug+uniqueness)");
   }
 
   revalidatePath("/admin/cars");
-  refreshPublicPages();
+  refreshPublicPages([parsed.data.slug]);
   redirect("/admin/cars?status=created");
 }
 
 export async function updateCarAction(formData: FormData) {
   await assertAdmin();
+  const rawName = formData.get("name");
 
   const carId = Number(formData.get("id"));
   if (!Number.isFinite(carId) || carId <= 0) {
     redirect("/admin/cars?error=Invalid+car+ID");
   }
 
+  const existingCar = await db.query.cars.findFirst({
+    where: eq(cars.id, carId),
+    columns: {
+      slug: true,
+    },
+  });
+
+  if (!existingCar) {
+    redirect("/admin/cars?error=Car+not+found");
+  }
+
   const parsed = carSchema.safeParse({
-    name: formData.get("name"),
-    slug: formData.get("slug"),
+    name: rawName,
+    slug: rawName,
     priceFrom: formData.get("priceFrom"),
     bodyType: formData.get("bodyType"),
     description: formData.get("description"),
     featured: parseBooleanCheckbox(formData.get("featured")),
-    specsJson: formData.get("specsJson"),
-    imagesJson: formData.get("imagesJson"),
+    specsPayload: formData.get("specsPayload"),
+    imagesPayload: formData.get("imagesPayload"),
   });
 
   if (!parsed.success) {
-    redirect("/admin/cars?error=Invalid+update+payload");
+    const errorMessage = parsed.error.issues[0]?.message ?? "Invalid update payload";
+    redirect(`/admin/cars?error=${encodeURIComponent(errorMessage)}`);
+  }
+
+  const existingBySlug = await db.query.cars.findFirst({
+    where: eq(cars.slug, parsed.data.slug),
+    columns: { id: true },
+  });
+
+  if (existingBySlug && existingBySlug.id !== carId) {
+    redirect(buildRedirectPath("/admin/cars", "error", "A car with this slug already exists"));
   }
 
   try {
@@ -101,8 +217,8 @@ export async function updateCarAction(formData: FormData) {
         bodyType: parsed.data.bodyType,
         description: parsed.data.description,
         featured: parsed.data.featured,
-        specs: parsed.data.specsJson,
-        images: parsed.data.imagesJson,
+        specs: parsed.data.specsPayload,
+        images: parsed.data.imagesPayload,
         updatedAt: new Date(),
       })
       .where(eq(cars.id, carId));
@@ -111,7 +227,7 @@ export async function updateCarAction(formData: FormData) {
   }
 
   revalidatePath("/admin/cars");
-  refreshPublicPages();
+  refreshPublicPages([existingCar.slug, parsed.data.slug]);
   redirect("/admin/cars?status=updated");
 }
 
@@ -124,6 +240,17 @@ export async function deleteCarAction(formData: FormData) {
     redirect("/admin/cars?error=Invalid+car+ID");
   }
 
+  const existingCar = await db.query.cars.findFirst({
+    where: eq(cars.id, carId),
+    columns: {
+      slug: true,
+    },
+  });
+
+  if (!existingCar) {
+    redirect("/admin/cars?error=Car+not+found");
+  }
+
   try {
     await db.delete(cars).where(eq(cars.id, carId));
   } catch {
@@ -131,7 +258,7 @@ export async function deleteCarAction(formData: FormData) {
   }
 
   revalidatePath("/admin/cars");
-  refreshPublicPages();
+  refreshPublicPages([existingCar.slug]);
   redirect("/admin/cars?status=deleted");
 }
 
@@ -140,9 +267,10 @@ export async function updateBookingStatusAction(formData: FormData) {
 
   const bookingId = Number(formData.get("id"));
   const status = bookingStatusSchema.safeParse(formData.get("status"));
+  const returnPath = sanitizeBookingsReturnPath(formData.get("returnTo"));
 
   if (!Number.isFinite(bookingId) || bookingId <= 0 || !status.success) {
-    redirect("/admin/bookings?error=Invalid+booking+update");
+    redirect(appendFlashToPath(returnPath, "error", "Invalid booking update"));
   }
 
   try {
@@ -154,11 +282,11 @@ export async function updateBookingStatusAction(formData: FormData) {
       })
       .where(eq(bookings.id, bookingId));
   } catch {
-    redirect("/admin/bookings?error=Could+not+update+booking");
+    redirect(appendFlashToPath(returnPath, "error", "Could not update booking"));
   }
 
   revalidatePath("/admin/bookings");
-  redirect("/admin/bookings?status=updated");
+  redirect(appendFlashToPath(returnPath, "status", "updated"));
 }
 
 export async function updateHomepageContentAction(formData: FormData) {
@@ -172,18 +300,12 @@ export async function updateHomepageContentAction(formData: FormData) {
     primaryCtaHref: formData.get("primaryCtaHref"),
     secondaryCtaLabel: formData.get("secondaryCtaLabel"),
     secondaryCtaHref: formData.get("secondaryCtaHref"),
-    highlightsJson: formData.get("highlightsJson"),
+    highlightsPayload: formData.get("highlightsPayload"),
   });
 
   if (!parsed.success) {
-    redirect("/admin/content?error=Invalid+content+payload");
-  }
-
-  let parsedHighlights;
-  try {
-    parsedHighlights = highlightListSchema.parse(JSON.parse(parsed.data.highlightsJson));
-  } catch {
-    redirect("/admin/content?error=Highlights+must+be+a+valid+JSON+array");
+    const errorMessage = parsed.error.issues[0]?.message ?? "Invalid content payload";
+    redirect(`/admin/content?error=${encodeURIComponent(errorMessage)}`);
   }
 
   const payload = {
@@ -200,7 +322,7 @@ export async function updateHomepageContentAction(formData: FormData) {
         href: parsed.data.secondaryCtaHref,
       },
     },
-    highlights: parsedHighlights,
+    highlights: parsed.data.highlightsPayload,
   };
 
   try {
@@ -253,4 +375,172 @@ export async function ensureContentRowAction() {
 
   revalidatePath("/admin/content");
   redirect("/admin/content");
+}
+
+export async function createHomepageSlideAction(formData: FormData) {
+  await assertAdmin();
+
+  const parsed = homepageSlideCreateSchema.safeParse({
+    title: formData.get("title"),
+    description: formData.get("description"),
+    ctaLabel: formData.get("ctaLabel"),
+    ctaHref: formData.get("ctaHref"),
+    sortOrder: formData.get("sortOrder") || 0,
+    isActive: parseBooleanCheckbox(formData.get("isActive")),
+  });
+
+  if (!parsed.success) {
+    const errorMessage = parsed.error.issues[0]?.message ?? "Invalid slide payload";
+    redirect(`/admin/homepage-slider?error=${encodeURIComponent(errorMessage)}`);
+  }
+
+  const imageFile = getSingleFile(formData.get("imageFile"));
+
+  if (!imageFile) {
+    redirect("/admin/homepage-slider?error=Slide+image+is+required");
+  }
+
+  const uploadResult = await uploadSliderImage(imageFile);
+  if (!uploadResult.ok) {
+    redirect(`/admin/homepage-slider?error=${encodeURIComponent(uploadResult.error)}`);
+  }
+
+  try {
+    await db.insert(homepageSlides).values({
+      title: parsed.data.title,
+      description: parsed.data.description,
+      imageUrl: uploadResult.url,
+      ctaLabel: parsed.data.ctaLabel,
+      ctaHref: parsed.data.ctaHref,
+      sortOrder: parsed.data.sortOrder,
+      isActive: parsed.data.isActive,
+      updatedAt: new Date(),
+    });
+  } catch {
+    redirect("/admin/homepage-slider?error=Could+not+create+slide");
+  }
+
+  refreshHomepageSliderPages();
+  redirect("/admin/homepage-slider?status=created");
+}
+
+export async function updateHomepageSlideAction(formData: FormData) {
+  await assertAdmin();
+
+  const parsed = homepageSlideUpdateSchema.safeParse({
+    id: formData.get("id"),
+    title: formData.get("title"),
+    description: formData.get("description"),
+    ctaLabel: formData.get("ctaLabel"),
+    ctaHref: formData.get("ctaHref"),
+    sortOrder: formData.get("sortOrder") || 0,
+    isActive: parseBooleanCheckbox(formData.get("isActive")),
+    existingImageUrl: formData.get("existingImageUrl"),
+  });
+
+  if (!parsed.success) {
+    const errorMessage = parsed.error.issues[0]?.message ?? "Invalid slide payload";
+    redirect(`/admin/homepage-slider?error=${encodeURIComponent(errorMessage)}`);
+  }
+
+  let imageUrl = parsed.data.existingImageUrl;
+  const replacementImage = getSingleFile(formData.get("imageFile"));
+
+  if (replacementImage) {
+    const uploadResult = await uploadSliderImage(replacementImage);
+
+    if (!uploadResult.ok) {
+      redirect(`/admin/homepage-slider?error=${encodeURIComponent(uploadResult.error)}`);
+    }
+
+    imageUrl = uploadResult.url;
+  }
+
+  if (!imageUrl) {
+    redirect("/admin/homepage-slider?error=Slide+image+is+required");
+  }
+
+  try {
+    await db
+      .update(homepageSlides)
+      .set({
+        title: parsed.data.title,
+        description: parsed.data.description,
+        imageUrl,
+        ctaLabel: parsed.data.ctaLabel,
+        ctaHref: parsed.data.ctaHref,
+        sortOrder: parsed.data.sortOrder,
+        isActive: parsed.data.isActive,
+        updatedAt: new Date(),
+      })
+      .where(eq(homepageSlides.id, parsed.data.id));
+  } catch {
+    redirect("/admin/homepage-slider?error=Could+not+update+slide");
+  }
+
+  refreshHomepageSliderPages();
+  redirect("/admin/homepage-slider?status=updated");
+}
+
+export async function deleteHomepageSlideAction(formData: FormData) {
+  await assertAdmin();
+
+  const slideId = String(formData.get("id") ?? "").trim();
+
+  if (!slideId) {
+    redirect("/admin/homepage-slider?error=Invalid+slide+ID");
+  }
+
+  try {
+    await db.delete(homepageSlides).where(eq(homepageSlides.id, slideId));
+  } catch {
+    redirect("/admin/homepage-slider?error=Could+not+delete+slide");
+  }
+
+  refreshHomepageSliderPages();
+  redirect("/admin/homepage-slider?status=deleted");
+}
+
+export async function moveHomepageSlideOrderAction(formData: FormData) {
+  await assertAdmin();
+
+  const slideId = String(formData.get("id") ?? "").trim();
+  const direction = String(formData.get("direction") ?? "").trim();
+
+  if (!slideId || (direction !== "up" && direction !== "down")) {
+    redirect("/admin/homepage-slider?error=Invalid+slide+reorder+request");
+  }
+
+  const orderedSlides = await db.query.homepageSlides.findMany({
+    orderBy: [asc(homepageSlides.sortOrder), asc(homepageSlides.createdAt)],
+  });
+
+  const currentIndex = orderedSlides.findIndex((slide) => slide.id === slideId);
+  if (currentIndex === -1) {
+    redirect("/admin/homepage-slider?error=Slide+not+found");
+  }
+
+  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+
+  if (targetIndex < 0 || targetIndex >= orderedSlides.length) {
+    redirect("/admin/homepage-slider");
+  }
+
+  const reorderedSlides = [...orderedSlides];
+  [reorderedSlides[currentIndex], reorderedSlides[targetIndex]] = [reorderedSlides[targetIndex], reorderedSlides[currentIndex]];
+
+  await db.transaction(async (tx) => {
+    for (const [index, slide] of reorderedSlides.entries()) {
+      await tx
+        .update(homepageSlides)
+        .set({
+          sortOrder: index,
+          updatedAt: new Date(),
+        })
+        .where(eq(homepageSlides.id, slide.id));
+    }
+  });
+
+  refreshHomepageSliderPages();
+  redirect("/admin/homepage-slider?status=reordered");
 }

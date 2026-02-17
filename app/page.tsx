@@ -1,14 +1,27 @@
 import Link from "next/link";
 
+import { HomepageSlider, type HomepageSlide } from "@/components/site/homepage-slider";
 import { MarketingLayout } from "@/components/site/marketing-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getFeaturedCars, getHomepageContent } from "@/lib/db/queries";
+import { getActiveHomepageSlides, getFeaturedCars, getHomepageContent } from "@/lib/db/queries";
 
 export const dynamic = "force-dynamic";
 
+function formatPrice(priceFrom: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(priceFrom);
+}
+
 export default async function HomePage() {
-  const [featuredCars, homepageContent] = await Promise.all([getFeaturedCars(), getHomepageContent()]);
+  const [featuredCars, homepageContent, activeSlides] = await Promise.all([
+    getFeaturedCars(),
+    getHomepageContent(),
+    getActiveHomepageSlides(),
+  ]);
 
   const hero = homepageContent.hero as {
     eyebrow?: string;
@@ -21,28 +34,34 @@ export default async function HomePage() {
   const highlights = Array.isArray(homepageContent.highlights)
     ? (homepageContent.highlights as Array<{ title?: string; description?: string }>)
     : [];
+  const heroSlides = activeSlides.length
+    ? activeSlides.map(
+        (slide): HomepageSlide => ({
+          title: slide.title,
+          description: slide.description ?? hero.subtitle ?? "",
+          imageUrl: slide.imageUrl,
+          ctaLabel: slide.ctaLabel ?? "View model",
+          ctaHref: slide.ctaHref ?? "/models",
+        }),
+      )
+    : [
+        {
+          title: hero.title ?? "Precision engineered for daily confidence.",
+          description:
+            hero.subtitle ??
+            "From compact city crossovers to family-ready SUVs, Astra Motors blends comfort, safety, and electric-ready performance.",
+          imageUrl:
+            featuredCars[0]?.images[0] ??
+            "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=1600&q=80",
+          ctaHref: hero.primaryCta?.href ?? "/models",
+          ctaLabel: hero.primaryCta?.label ?? "Explore models",
+        } satisfies HomepageSlide,
+      ];
 
   return (
     <MarketingLayout>
       <section className="container-shell pt-16 pb-16 md:pt-24">
-        <div className="hero-shine relative overflow-hidden rounded-3xl border border-border/60 p-8 md:p-14">
-          <div className="absolute -top-16 -right-10 h-52 w-52 rounded-full bg-primary/10 blur-3xl" />
-          <p className="text-sm font-semibold tracking-[0.18em] text-primary uppercase">{hero.eyebrow}</p>
-          <h1 className="font-display mt-3 max-w-3xl text-4xl leading-tight font-semibold md:text-6xl">
-            {hero.title}
-          </h1>
-          <p className="mt-5 max-w-2xl text-base text-muted-foreground md:text-lg">{hero.subtitle}</p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link href={hero.primaryCta?.href ?? "/book-test-drive"}>
-              <Button size="lg">{hero.primaryCta?.label ?? "Book a test drive"}</Button>
-            </Link>
-            <Link href={hero.secondaryCta?.href ?? "/models"}>
-              <Button size="lg" variant="outline">
-                {hero.secondaryCta?.label ?? "Explore models"}
-              </Button>
-            </Link>
-          </div>
-        </div>
+        <HomepageSlider slides={heroSlides} />
       </section>
 
       <section className="container-shell pb-16">
@@ -64,23 +83,31 @@ export default async function HomePage() {
             </Card>
           ) : (
             featuredCars.map((car) => (
-              <Card key={car.id} className="overflow-hidden py-0">
-                <div
-                  className="h-44 w-full"
-                  style={{
-                    backgroundImage: `linear-gradient(145deg, rgba(255,255,255,0.4), rgba(15, 118, 110, 0.2)), url(${car.images[0] ?? ""})`,
-                    backgroundColor: "#dbe4ec",
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                  }}
-                />
-                <CardHeader>
-                  <CardTitle className="font-display text-xl">{car.name}</CardTitle>
+              <Card key={car.id} className="h-full overflow-hidden border-border/60 py-0">
+                <div className="hero-shine border-b border-border/60 p-4">
+                  <div
+                    className="h-40 w-full"
+                    style={{
+                      backgroundImage: car.images[0] ? `url(${car.images[0]})` : undefined,
+                      backgroundSize: "contain",
+                      backgroundPosition: "center",
+                      backgroundRepeat: "no-repeat",
+                    }}
+                  />
+                </div>
+                <CardHeader className="pb-0">
+                  <CardTitle className="font-display line-clamp-2 text-3xl leading-tight capitalize">{car.name}</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">{car.description}</p>
-                  <Link href={`/models/${car.slug}`} className="mt-4 inline-flex">
-                    <Button variant="outline">See details</Button>
+                <CardContent className="flex flex-1 flex-col gap-4">
+                  <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">{car.description}</p>
+                  <div className="mt-auto flex items-center justify-between gap-3 text-sm">
+                    <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">{car.bodyType}</span>
+                    <span className="font-semibold">From {formatPrice(car.priceFrom)}</span>
+                  </div>
+                  <Link href={`/models/${car.slug}`} className="my-4 inline-flex">
+                    <Button variant="outline" className="whitespace-normal px-4 leading-tight">
+                      See details
+                    </Button>
                   </Link>
                 </CardContent>
               </Card>

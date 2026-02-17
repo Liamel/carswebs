@@ -8,6 +8,13 @@
       "when": 1771320690440,
       "tag": "0000_parched_excalibur",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1771328457515,
+      "tag": "0001_chubby_wild_pack",
+      "breakpoints": true
     }
   ]
 }

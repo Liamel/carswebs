@@ -9,47 +9,47 @@ export default async function AdminDashboardPage() {
   const [stats, recentBookings] = await Promise.all([getDashboardStats(), getRecentBookings(6)]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h1 className="font-display text-3xl font-semibold">Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-400">Overview of inventory and booking activity.</p>
+        <h1 className="font-display text-3xl font-semibold tracking-tight">Dashboard</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Overview of inventory and booking activity.</p>
       </div>
 
       <section className="grid gap-4 md:grid-cols-4">
-        <Card className="border-slate-800 bg-slate-900/70">
+        <Card className="bg-white/90">
           <CardHeader>
-            <CardTitle className="text-sm text-slate-400">Total cars</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground uppercase">Total cars</CardTitle>
           </CardHeader>
-          <CardContent className="text-3xl font-semibold">{stats.totalCars}</CardContent>
+          <CardContent className="text-4xl font-semibold">{stats.totalCars}</CardContent>
         </Card>
-        <Card className="border-slate-800 bg-slate-900/70">
+        <Card className="bg-white/90">
           <CardHeader>
-            <CardTitle className="text-sm text-slate-400">Total bookings</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground uppercase">Total bookings</CardTitle>
           </CardHeader>
-          <CardContent className="text-3xl font-semibold">{stats.totalBookings}</CardContent>
+          <CardContent className="text-4xl font-semibold">{stats.totalBookings}</CardContent>
         </Card>
-        <Card className="border-slate-800 bg-slate-900/70">
+        <Card className="bg-white/90">
           <CardHeader>
-            <CardTitle className="text-sm text-slate-400">Pending bookings</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground uppercase">Pending bookings</CardTitle>
           </CardHeader>
-          <CardContent className="text-3xl font-semibold">{stats.pendingBookings}</CardContent>
+          <CardContent className="text-4xl font-semibold">{stats.pendingBookings}</CardContent>
         </Card>
-        <Card className="border-slate-800 bg-slate-900/70">
+        <Card className="bg-white/90">
           <CardHeader>
-            <CardTitle className="text-sm text-slate-400">Featured cars</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground uppercase">Featured cars</CardTitle>
           </CardHeader>
-          <CardContent className="text-3xl font-semibold">{stats.featuredCars}</CardContent>
+          <CardContent className="text-4xl font-semibold">{stats.featuredCars}</CardContent>
         </Card>
       </section>
 
-      <Card className="border-slate-800 bg-slate-900/70">
+      <Card className="bg-white/92">
         <CardHeader>
           <CardTitle>Recent bookings</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow className="border-slate-800 hover:bg-slate-900">
+              <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Model</TableHead>
                 <TableHead>Status</TableHead>
@@ -57,7 +57,7 @@ export default async function AdminDashboardPage() {
             </TableHeader>
             <TableBody>
               {recentBookings.map((booking) => (
-                <TableRow key={booking.id} className="border-slate-800 hover:bg-slate-900">
+                <TableRow key={booking.id}>
                   <TableCell>{booking.name}</TableCell>
                   <TableCell>{booking.carName ?? "Any"}</TableCell>
                   <TableCell>

@@ -1,8 +1,8 @@
-import { and, asc, count, desc, eq, ilike, sql } from "drizzle-orm";
-import { cache } from "react";
+import { and, asc, count, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
 
 import { db } from "@/lib/db";
-import { bookings, cars, content } from "@/lib/db/schema";
+import { bookings, cars, content, homepageSlides } from "@/lib/db/schema";
 
 const DEFAULT_HOMEPAGE_CONTENT = {
   hero: {
@@ -29,48 +29,113 @@ const DEFAULT_HOMEPAGE_CONTENT = {
   ],
 } as const;
 
-export const getFeaturedCars = cache(async () => {
-  return db.query.cars.findMany({
-    where: eq(cars.featured, true),
-    orderBy: [asc(cars.name)],
-    limit: 6,
-  });
-});
+const getFeaturedCarsCached = unstable_cache(
+  async () => {
+    return db.query.cars.findMany({
+      where: eq(cars.featured, true),
+      orderBy: [desc(cars.updatedAt), asc(cars.name)],
+      limit: 6,
+    });
+  },
+  ["featured-cars"],
+  { revalidate: 3600, tags: ["cars"] },
+);
 
-export async function getCars(params?: { search?: string; bodyType?: string }) {
+export async function getFeaturedCars() {
+  return getFeaturedCarsCached();
+}
+
+export type CarsFilters = {
+  search?: string;
+  bodyTypes?: string[];
+  featuredOnly?: boolean;
+};
+
+export async function getCars(params?: CarsFilters) {
   const filters = [];
+  const search = params?.search?.trim();
+  const bodyTypes = [...new Set((params?.bodyTypes ?? []).map((value) => value.trim()).filter(Boolean))];
 
-  if (params?.search) {
-    filters.push(ilike(cars.name, `%${params.search.trim()}%`));
+  if (search) {
+    filters.push(ilike(cars.name, `%${search}%`));
   }
 
-  if (params?.bodyType) {
-    filters.push(eq(cars.bodyType, params.bodyType));
+  if (bodyTypes.length > 0) {
+    filters.push(inArray(cars.bodyType, bodyTypes));
+  }
+
+  if (params?.featuredOnly) {
+    filters.push(eq(cars.featured, true));
   }
 
   return db.query.cars.findMany({
     where: filters.length ? and(...filters) : undefined,
-    orderBy: [asc(cars.name)],
+    orderBy: [asc(cars.priceFrom), asc(cars.name)],
   });
 }
 
-export const getBodyTypes = cache(async () => {
-  const rows = await db
-    .select({ bodyType: cars.bodyType })
-    .from(cars)
-    .groupBy(cars.bodyType)
-    .orderBy(asc(cars.bodyType));
+const getBodyTypesCached = unstable_cache(
+  async () => {
+    const rows = await db
+      .select({ bodyType: cars.bodyType })
+      .from(cars)
+      .groupBy(cars.bodyType)
+      .orderBy(asc(cars.bodyType));
 
-  return rows.map((row) => row.bodyType);
-});
+    return rows.map((row) => row.bodyType);
+  },
+  ["cars-body-types"],
+  { revalidate: 3600, tags: ["cars"] },
+);
 
-export const getCarBySlug = cache(async (slug: string) => {
+export async function getBodyTypes() {
+  return getBodyTypesCached();
+}
+
+export type CarsOverlaySummaryItem = {
+  slug: string;
+  name: string;
+  priceFrom: number;
+  bodyType: string;
+  imageUrl: string | null;
+};
+
+const getCarsOverlaySummaryCached = unstable_cache(
+  async (): Promise<CarsOverlaySummaryItem[]> => {
+    const rows = await db.query.cars.findMany({
+      columns: {
+        slug: true,
+        name: true,
+        priceFrom: true,
+        bodyType: true,
+        images: true,
+      },
+      orderBy: [asc(cars.bodyType), asc(cars.priceFrom), asc(cars.name)],
+    });
+
+    return rows.map((car) => ({
+      slug: car.slug,
+      name: car.name,
+      priceFrom: car.priceFrom,
+      bodyType: car.bodyType,
+      imageUrl: car.images[0] ?? null,
+    }));
+  },
+  ["cars-overlay-summary"],
+  { revalidate: 3600, tags: ["cars"] },
+);
+
+export async function getCarsOverlaySummary() {
+  return getCarsOverlaySummaryCached();
+}
+
+export async function getCarBySlug(slug: string) {
   return db.query.cars.findFirst({
     where: eq(cars.slug, slug),
   });
-});
+}
 
-export const getHomepageContent = cache(async () => {
+export async function getHomepageContent() {
   const row = await db.query.content.findFirst({
     where: eq(content.key, "homepage"),
   });
@@ -83,7 +148,28 @@ export const getHomepageContent = cache(async () => {
     ...DEFAULT_HOMEPAGE_CONTENT,
     ...(row.value as Record<string, unknown>),
   };
-});
+}
+
+const getActiveHomepageSlidesCached = unstable_cache(
+  async () => {
+    return db.query.homepageSlides.findMany({
+      where: eq(homepageSlides.isActive, true),
+      orderBy: [asc(homepageSlides.sortOrder), asc(homepageSlides.createdAt)],
+    });
+  },
+  ["homepage-active-slides"],
+  { revalidate: 3600, tags: ["homepage-slides"] },
+);
+
+export async function getActiveHomepageSlides() {
+  return getActiveHomepageSlidesCached();
+}
+
+export async function getHomepageSlidesForAdmin() {
+  return db.query.homepageSlides.findMany({
+    orderBy: [asc(homepageSlides.sortOrder), desc(homepageSlides.createdAt)],
+  });
+}
 
 export async function getDashboardStats() {
   const [{ totalCars }] = await db.select({ totalCars: count(cars.id) }).from(cars);
@@ -111,7 +197,29 @@ export async function getAllCarsForAdmin() {
   });
 }
 
-export async function getBookingsForAdmin() {
+export type AdminBookingsFilters = {
+  status?: "PENDING" | "CONFIRMED" | "CANCELLED";
+  search?: string;
+};
+
+export async function getBookingsForAdmin(filters?: AdminBookingsFilters) {
+  const whereClauses = [];
+  const search = filters?.search?.trim();
+
+  if (filters?.status) {
+    whereClauses.push(eq(bookings.status, filters.status));
+  }
+
+  if (search) {
+    whereClauses.push(
+      or(
+        ilike(bookings.name, `%${search}%`),
+        ilike(bookings.email, `%${search}%`),
+        ilike(bookings.phone, `%${search}%`),
+      ),
+    );
+  }
+
   return db
     .select({
       id: bookings.id,
@@ -127,6 +235,7 @@ export async function getBookingsForAdmin() {
     })
     .from(bookings)
     .leftJoin(cars, eq(bookings.carId, cars.id))
+    .where(whereClauses.length > 0 ? and(...whereClauses) : undefined)
     .orderBy(desc(bookings.createdAt));
 }
 
