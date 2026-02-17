@@ -97,11 +97,20 @@ export function getAuthSession() {
   return getServerSession(authOptions);
 }
 
+export async function isServerSessionAdmin() {
+  const session = await getAuthSession();
+  const email = normalizeEmail(session?.user?.email);
+  const hasAdminRole = session?.user?.role === "ADMIN";
+
+  return Boolean(email && hasAdminRole && isAdminEmail(email));
+}
+
 export async function requireAdminSession() {
   const session = await getAuthSession();
   const email = normalizeEmail(session?.user?.email);
+  const hasAdminRole = session?.user?.role === "ADMIN";
 
-  if (!email || !isAdminEmail(email)) {
+  if (!email || !hasAdminRole || !isAdminEmail(email)) {
     return null;
   }
 

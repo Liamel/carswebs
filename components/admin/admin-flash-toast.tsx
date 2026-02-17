@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 
 type AdminFlashToastProps = {
@@ -16,21 +16,42 @@ function normalizeMessage(value: string) {
     .trim();
 }
 
+function buildToastId(type: "error" | "status", message: string) {
+  return `admin-flash-${type}-${encodeURIComponent(message)}`;
+}
+
 export function AdminFlashToast({ status, error, statusMap }: AdminFlashToastProps) {
-  useEffect(() => {
-    if (error) {
-      toast.error(normalizeMessage(error));
+  const errorMessage = useMemo(() => {
+    if (!error) {
+      return null;
     }
+
+    return normalizeMessage(error);
   }, [error]);
 
-  useEffect(() => {
+  const statusMessage = useMemo(() => {
     if (!status) {
+      return null;
+    }
+
+    return statusMap?.[status] ?? normalizeMessage(status);
+  }, [status, statusMap]);
+
+  useEffect(() => {
+    if (!errorMessage) {
       return;
     }
 
-    const mappedMessage = statusMap?.[status] ?? normalizeMessage(status);
-    toast.success(mappedMessage);
-  }, [status, statusMap]);
+    toast.error(errorMessage, { id: buildToastId("error", errorMessage) });
+  }, [errorMessage]);
+
+  useEffect(() => {
+    if (!statusMessage) {
+      return;
+    }
+
+    toast.success(statusMessage, { id: buildToastId("status", statusMessage) });
+  }, [statusMessage]);
 
   return null;
 }
