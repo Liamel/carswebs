@@ -95,7 +95,9 @@ function parseImagesPayload(value: string, ctx: z.RefinementCtx) {
 }
 
 export const carSchema = z.object({
-  name: z.string().trim().min(2, "Name must be at least 2 characters").max(120),
+  nameGeo: z.string().trim().min(2, "Georgian name must be at least 2 characters").max(120),
+  nameEn: z.string().trim().min(2, "English name must be at least 2 characters").max(120),
+  nameRu: z.string().trim().min(2, "Russian name must be at least 2 characters").max(120),
   slug: z
     .string()
     .trim()
@@ -123,7 +125,9 @@ export const carSchema = z.object({
       });
       return z.NEVER;
     }),
-  description: z.string().trim().min(10, "Description must be at least 10 characters").max(4000),
+  descriptionGeo: z.string().trim().min(10, "Georgian description must be at least 10 characters").max(4000),
+  descriptionEn: z.string().trim().min(10, "English description must be at least 10 characters").max(4000),
+  descriptionRu: z.string().trim().min(10, "Russian description must be at least 10 characters").max(4000),
   featured: z.coerce.boolean().default(false),
   specsPayload: z.string().trim().transform((value, ctx) => parseSpecsPayload(value, ctx)),
   imagesPayload: z.string().trim().transform((value, ctx) => parseImagesPayload(value, ctx)),

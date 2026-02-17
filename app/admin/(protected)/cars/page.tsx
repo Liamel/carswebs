@@ -63,7 +63,7 @@ export default async function AdminCarsPage({ searchParams }: AdminCarsPageProps
           return (
             <Card key={car.id} className="bg-white/92">
               <CardHeader>
-                <CardTitle className="font-display text-2xl capitalize">{car.name}</CardTitle>
+                <CardTitle className="font-display text-2xl capitalize">{car.nameGeo}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {previewImage ? (
@@ -85,12 +85,16 @@ export default async function AdminCarsPage({ searchParams }: AdminCarsPageProps
                   <CarFormFields
                     idPrefix={`edit-car-${car.id}`}
                     bodyTypeOptions={[...BODY_TYPE_OPTIONS]}
-                    initialName={car.name}
+                    initialNameGeo={car.nameGeo}
+                    initialNameEn={car.nameEn}
+                    initialNameRu={car.nameRu}
                     initialSlug={car.slug}
                     initialPriceFrom={car.priceFrom}
                     initialBodyType={car.bodyType}
                     initialFeatured={car.featured}
-                    initialDescription={car.description}
+                    initialDescriptionGeo={car.descriptionGeo}
+                    initialDescriptionEn={car.descriptionEn}
+                    initialDescriptionRu={car.descriptionRu}
                     initialImages={car.images}
                     initialSpecs={specs}
                   />

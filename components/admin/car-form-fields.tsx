@@ -25,12 +25,16 @@ type CarSpecRow = CarSpecDraft & {
 type CarFormFieldsProps = {
   idPrefix: string;
   bodyTypeOptions: string[];
-  initialName?: string;
+  initialNameGeo?: string;
+  initialNameEn?: string;
+  initialNameRu?: string;
   initialSlug?: string;
   initialPriceFrom?: number;
   initialBodyType?: string;
   initialFeatured?: boolean;
-  initialDescription?: string;
+  initialDescriptionGeo?: string;
+  initialDescriptionEn?: string;
+  initialDescriptionRu?: string;
   initialImages?: string[];
   initialSpecs?: CarSpecDraft[];
 };
@@ -54,12 +58,16 @@ function slugify(value: string) {
 export function CarFormFields({
   idPrefix,
   bodyTypeOptions,
-  initialName = "",
+  initialNameGeo = "",
+  initialNameEn = "",
+  initialNameRu = "",
   initialSlug = "",
   initialPriceFrom,
   initialBodyType,
   initialFeatured = false,
-  initialDescription = "",
+  initialDescriptionGeo = "",
+  initialDescriptionEn = "",
+  initialDescriptionRu = "",
   initialImages = [],
   initialSpecs = [],
 }: CarFormFieldsProps) {
@@ -71,7 +79,7 @@ export function CarFormFields({
     return bodyTypeOptions;
   }, [bodyTypeOptions, initialBodyType]);
 
-  const [name, setName] = useState(initialName);
+  const [nameGeo, setNameGeo] = useState(initialNameGeo);
   const [bodyType, setBodyType] = useState(initialBodyType ?? normalizedBodyTypeOptions[0] ?? "SUV");
   const [featured, setFeatured] = useState(initialFeatured);
   const [images, setImages] = useState(initialImages);
@@ -96,14 +104,14 @@ export function CarFormFields({
 
   const imagesPayload = useMemo(() => JSON.stringify(images.filter(Boolean)), [images]);
   const generatedSlug = useMemo(() => {
-    const trimmedName = name.trim();
+    const trimmedName = nameGeo.trim();
 
     if (trimmedName.length === 0) {
       return initialSlug || "";
     }
 
     return slugify(trimmedName);
-  }, [initialSlug, name]);
+  }, [initialSlug, nameGeo]);
 
   async function uploadSelectedFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) {
@@ -145,17 +153,16 @@ export function CarFormFields({
 
   return (
     <>
-      <div className="grid gap-3 md:grid-cols-3">
-        <div className="grid gap-1.5 md:col-span-2">
-          <Label htmlFor={`${idPrefix}-name`}>Model name</Label>
+      <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-1.5 md:col-span-3">
+          <Label htmlFor={`${idPrefix}-name-geo`}>Model name (GEO)</Label>
           <Input
-            id={`${idPrefix}-name`}
-            name="name"
-            value={name}
-            placeholder="Astra Voyager 7"
+            id={`${idPrefix}-name-geo`}
+            name="nameGeo"
+            value={nameGeo}
+            placeholder="ასტრა ვოიაჯერ 7"
             onChange={(event) => {
-              const nextName = event.target.value;
-              setName(nextName);
+              setNameGeo(event.target.value);
             }}
             required
           />
@@ -176,14 +183,32 @@ export function CarFormFields({
 
       <div className="grid gap-3 md:grid-cols-2">
         <div className="grid gap-1.5">
-          <Label htmlFor={`${idPrefix}-slug-preview`}>Slug (auto-generated)</Label>
+          <Label htmlFor={`${idPrefix}-name-en`}>Model name (ENG)</Label>
           <Input
-            id={`${idPrefix}-slug-preview`}
-            value={generatedSlug}
-            placeholder="astra-voyager-7"
-            readOnly
+            id={`${idPrefix}-name-en`}
+            name="nameEn"
+            defaultValue={initialNameEn}
+            placeholder="Astra Voyager 7"
+            required
           />
-          <p className="text-xs text-muted-foreground">Automatically created from model name using lowercase and hyphens.</p>
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor={`${idPrefix}-name-ru`}>Model name (RUS)</Label>
+          <Input
+            id={`${idPrefix}-name-ru`}
+            name="nameRu"
+            defaultValue={initialNameRu}
+            placeholder="Астра Вояджер 7"
+            required
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-1.5">
+          <Label htmlFor={`${idPrefix}-slug-preview`}>Slug (auto-generated from GEO)</Label>
+          <Input id={`${idPrefix}-slug-preview`} value={generatedSlug} placeholder="astra-voyager-7" readOnly />
+          <p className="text-xs text-muted-foreground">Automatically created from GEO model name using lowercase and hyphens.</p>
         </div>
 
         <div className="grid gap-1.5">
@@ -204,16 +229,40 @@ export function CarFormFields({
         </div>
       </div>
 
-      <div className="grid gap-1.5">
-        <Label htmlFor={`${idPrefix}-description`}>Description</Label>
-        <Textarea
-          id={`${idPrefix}-description`}
-          name="description"
-          rows={3}
-          defaultValue={initialDescription}
-          placeholder="Family-focused seven-seater with flexible cargo layout..."
-          required
-        />
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor={`${idPrefix}-description-geo`}>Description (GEO)</Label>
+          <Textarea
+            id={`${idPrefix}-description-geo`}
+            name="descriptionGeo"
+            rows={4}
+            defaultValue={initialDescriptionGeo}
+            placeholder="ოჯახზე ორიენტირებული შვიდადგილიანი მოდელი..."
+            required
+          />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor={`${idPrefix}-description-en`}>Description (ENG)</Label>
+          <Textarea
+            id={`${idPrefix}-description-en`}
+            name="descriptionEn"
+            rows={4}
+            defaultValue={initialDescriptionEn}
+            placeholder="Family-focused seven-seater with flexible cargo layout..."
+            required
+          />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor={`${idPrefix}-description-ru`}>Description (RUS)</Label>
+          <Textarea
+            id={`${idPrefix}-description-ru`}
+            name="descriptionRu"
+            rows={4}
+            defaultValue={initialDescriptionRu}
+            placeholder="Семиместная модель с гибкой компоновкой багажника..."
+            required
+          />
+        </div>
       </div>
 
       <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
@@ -270,11 +319,14 @@ export function CarFormFields({
           {images.map((imageUrl, index) => (
             <Card key={`${imageUrl}-${index}`} className="gap-3 py-3">
               <CardContent className="space-y-3 px-3">
-                <div className="h-28 rounded-xl border border-border/70 bg-muted" style={{
-                  backgroundImage: `url(${imageUrl})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }} />
+                <div
+                  className="h-28 rounded-xl border border-border/70 bg-muted"
+                  style={{
+                    backgroundImage: `url(${imageUrl})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
+                />
                 <div className="flex items-center justify-between gap-2">
                   {index === 0 ? (
                     <Badge variant="success" className="gap-1">

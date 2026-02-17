@@ -15,6 +15,13 @@
       "when": 1771328457515,
       "tag": "0001_chubby_wild_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1771337535057,
+      "tag": "0002_striped_reptil",
+      "breakpoints": true
     }
   ]
 }

@@ -18,11 +18,17 @@ export type HomepageSlide = {
   ctaLabel?: string;
 };
 
-type HomepageSliderProps = {
-  slides: HomepageSlide[];
+export type HomepageSliderLabels = {
+  regionAriaLabel: string;
+  goToSlideAriaTemplate: string;
 };
 
-export function HomepageSlider({ slides }: HomepageSliderProps) {
+type HomepageSliderProps = {
+  slides: HomepageSlide[];
+  labels: HomepageSliderLabels;
+};
+
+export function HomepageSlider({ slides, labels }: HomepageSliderProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const swiperRef = useRef<SwiperType | null>(null);
 
@@ -47,7 +53,7 @@ export function HomepageSlider({ slides }: HomepageSliderProps) {
     <div
       className="overflow-hidden rounded-3xl border border-border/60 bg-card shadow-sm"
       role="region"
-      aria-label="Homepage featured slides"
+      aria-label={labels.regionAriaLabel}
       tabIndex={0}
       onKeyDown={handleKeyboardNavigation}
       onMouseEnter={() => swiperRef.current?.autoplay.stop()}
@@ -61,7 +67,6 @@ export function HomepageSlider({ slides }: HomepageSliderProps) {
       onPointerDown={() => swiperRef.current?.autoplay.stop()}
       onPointerUp={() => swiperRef.current?.autoplay.start()}
     >
-      {/* Swiper stays lightweight here and already handles touch swipe + mouse drag reliably. */}
       <Swiper
         modules={[Autoplay, A11y]}
         autoplay={slides.length > 1 ? { delay: 4000, pauseOnMouseEnter: true, disableOnInteraction: false } : false}
@@ -75,7 +80,7 @@ export function HomepageSlider({ slides }: HomepageSliderProps) {
         }}
       >
         {slides.map((slide, index) => {
-          const href = slide.ctaHref || "/models";
+          const href = slide.ctaHref || "/";
 
           return (
             <SwiperSlide key={`${slide.title}-${index}`}>
@@ -109,12 +114,15 @@ export function HomepageSlider({ slides }: HomepageSliderProps) {
         <div className="flex items-center justify-center gap-2 bg-card/95 px-4 py-3">
           {slides.map((slide, index) => {
             const isActive = index === activeIndex;
+            const ariaLabel = labels.goToSlideAriaTemplate
+              .replace("{index}", String(index + 1))
+              .replace("{title}", slide.title);
 
             return (
               <button
                 key={`slide-dot-${index}`}
                 type="button"
-                aria-label={`Go to slide ${index + 1}: ${slide.title}`}
+                aria-label={ariaLabel}
                 aria-current={isActive}
                 onClick={() => slideToIndex(index)}
                 className={`h-2.5 w-2.5 rounded-full transition ${isActive ? "bg-primary" : "bg-muted-foreground/35 hover:bg-muted-foreground/60"}`}

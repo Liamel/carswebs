@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import type { Locale } from "@/lib/i18n/config";
 
 type ModelOption = {
   id: number;
@@ -15,7 +16,27 @@ type ModelOption = {
   slug: string;
 };
 
+export type BookingFormLabels = {
+  submit: string;
+  submitting: string;
+  nameLabel: string;
+  emailLabel: string;
+  phoneLabel: string;
+  preferredModelLabel: string;
+  anyModelOption: string;
+  preferredDateLabel: string;
+  preferredTimeLabel: string;
+  selectTimeSlotOption: string;
+  availableWindow: string;
+  noSlotsToday: string;
+  locationLabel: string;
+  locationPlaceholder: string;
+  noteLabel: string;
+};
+
 type BookingFormProps = {
+  locale: Locale;
+  labels: BookingFormLabels;
   models: ModelOption[];
   defaultModel?: string;
 };
@@ -27,20 +48,10 @@ const BUSINESS_DAY_START_MINUTES = 9 * 60;
 const BUSINESS_DAY_END_MINUTES = 20 * 60;
 const BUSINESS_TIME_SLOT_COUNT =
   Math.floor((BUSINESS_DAY_END_MINUTES - BUSINESS_DAY_START_MINUTES) / TIME_SLOT_INTERVAL_MINUTES) + 1;
-const TIME_SLOT_OPTIONS = Array.from({ length: BUSINESS_TIME_SLOT_COUNT }, (_, index) => {
-  const minutesOfDay = BUSINESS_DAY_START_MINUTES + index * TIME_SLOT_INTERVAL_MINUTES;
-  const hours = Math.floor(minutesOfDay / 60);
-  const minutes = minutesOfDay % 60;
-  const value = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
-  const hour12 = hours % 12 || 12;
-  const period = hours >= 12 ? "PM" : "AM";
-
-  return {
-    value,
-    label: `${hour12}:${String(minutes).padStart(2, "0")} ${period}`,
-    minutesOfDay,
-  };
-});
+const TIME_SLOT_MINUTES = Array.from(
+  { length: BUSINESS_TIME_SLOT_COUNT },
+  (_, index) => BUSINESS_DAY_START_MINUTES + index * TIME_SLOT_INTERVAL_MINUTES,
+);
 
 const bookingDateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
   timeZone: BOOKING_TIME_ZONE,
@@ -51,6 +62,12 @@ const bookingDateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
   minute: "2-digit",
   hourCycle: "h23",
 });
+
+const LOCALE_NUMBER_FORMAT: Record<Locale, string> = {
+  geo: "ka-GE",
+  en: "en-US",
+  ru: "ru-RU",
+};
 
 function getBookingPartsMap(date = new Date()) {
   return new Map(bookingDateTimeFormatter.formatToParts(date).map((part) => [part.type, part.value]));
@@ -91,12 +108,38 @@ function getMinutesOfDay(timeValue: string) {
   return hours * 60 + minutes;
 }
 
-function SubmitButton() {
+function toTimeValue(minutesOfDay: number) {
+  const hours = Math.floor(minutesOfDay / 60);
+  const minutes = minutesOfDay % 60;
+
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function buildTimeSlotOptions(locale: Locale) {
+  const formatter = new Intl.DateTimeFormat(LOCALE_NUMBER_FORMAT[locale], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  return TIME_SLOT_MINUTES.map((minutesOfDay) => {
+    const hours = Math.floor(minutesOfDay / 60);
+    const minutes = minutesOfDay % 60;
+    const displayDate = new Date(Date.UTC(2026, 0, 1, hours, minutes));
+
+    return {
+      value: toTimeValue(minutesOfDay),
+      label: formatter.format(displayDate),
+      minutesOfDay,
+    };
+  });
+}
+
+function SubmitButton({ labels }: { labels: BookingFormLabels }) {
   const { pending } = useFormStatus();
 
   return (
     <Button type="submit" size="lg" disabled={pending}>
-      {pending ? "Submitting..." : "Submit booking"}
+      {pending ? labels.submitting : labels.submit}
     </Button>
   );
 }
@@ -109,13 +152,14 @@ function FieldError({ errors }: { errors?: string[] }) {
   return <p className="text-sm text-rose-600">{errors[0]}</p>;
 }
 
-export function BookingForm({ models, defaultModel }: BookingFormProps) {
+export function BookingForm({ locale, labels, models, defaultModel }: BookingFormProps) {
   const [state, formAction] = useActionState(submitBookingAction, initialState);
   const bookingNow = useMemo(() => getCurrentBookingDateMeta(new Date()), []);
   const minimumPreferredDate = bookingNow.dateValue;
+  const timeSlotOptions = useMemo(() => buildTimeSlotOptions(locale), [locale]);
   const hasAvailableTimeSlotsToday = useMemo(
-    () => TIME_SLOT_OPTIONS.some((slot) => slot.minutesOfDay >= bookingNow.minutesOfDay),
-    [bookingNow.minutesOfDay],
+    () => timeSlotOptions.some((slot) => slot.minutesOfDay >= bookingNow.minutesOfDay),
+    [bookingNow.minutesOfDay, timeSlotOptions],
   );
   const [preferredDate, setPreferredDate] = useState(() =>
     hasAvailableTimeSlotsToday
@@ -123,13 +167,13 @@ export function BookingForm({ models, defaultModel }: BookingFormProps) {
       : getBookingDateValue(new Date(Date.now() + 24 * 60 * 60_000)),
   );
   const [preferredTime, setPreferredTime] = useState(() =>
-    TIME_SLOT_OPTIONS.find((slot) => slot.minutesOfDay >= bookingNow.minutesOfDay)?.value ??
-      TIME_SLOT_OPTIONS[0]?.value ??
+    timeSlotOptions.find((slot) => slot.minutesOfDay >= bookingNow.minutesOfDay)?.value ??
+      timeSlotOptions[0]?.value ??
       "",
   );
   const nextAvailableTodaySlotValue = useMemo(
-    () => TIME_SLOT_OPTIONS.find((slot) => slot.minutesOfDay >= bookingNow.minutesOfDay)?.value ?? "",
-    [bookingNow.minutesOfDay],
+    () => timeSlotOptions.find((slot) => slot.minutesOfDay >= bookingNow.minutesOfDay)?.value ?? "",
+    [bookingNow.minutesOfDay, timeSlotOptions],
   );
   const isTodaySelected = preferredDate === minimumPreferredDate;
   const hasAvailableSlotsForSelectedDate = !isTodaySelected || hasAvailableTimeSlotsToday;
@@ -140,7 +184,7 @@ export function BookingForm({ models, defaultModel }: BookingFormProps) {
 
     if (nextDateValue !== minimumPreferredDate) {
       if (!preferredTime) {
-        setPreferredTime(TIME_SLOT_OPTIONS[0]?.value ?? "");
+        setPreferredTime(timeSlotOptions[0]?.value ?? "");
       }
 
       return;
@@ -155,33 +199,35 @@ export function BookingForm({ models, defaultModel }: BookingFormProps) {
 
   return (
     <form action={formAction} className="grid gap-4">
+      <input type="hidden" name="locale" value={locale} />
+
       <div className="grid gap-2">
-        <Label htmlFor="name">Full name</Label>
+        <Label htmlFor="name">{labels.nameLabel}</Label>
         <Input id="name" name="name" required />
         <FieldError errors={state.fieldErrors?.name} />
       </div>
       <div className="grid gap-2 md:grid-cols-2">
         <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">{labels.emailLabel}</Label>
           <Input id="email" name="email" type="email" required />
           <FieldError errors={state.fieldErrors?.email} />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="phone">Phone</Label>
+          <Label htmlFor="phone">{labels.phoneLabel}</Label>
           <Input id="phone" name="phone" required />
           <FieldError errors={state.fieldErrors?.phone} />
         </div>
       </div>
       <div className="grid gap-2 md:grid-cols-3">
         <div className="grid gap-2">
-          <Label htmlFor="preferredModel">Preferred model</Label>
+          <Label htmlFor="preferredModel">{labels.preferredModelLabel}</Label>
           <select
             id="preferredModel"
             name="preferredModel"
             defaultValue={defaultModel ?? ""}
             className="h-11 rounded-xl border border-border bg-white px-3 text-sm shadow-xs"
           >
-            <option value="">Any model</option>
+            <option value="">{labels.anyModelOption}</option>
             {models.map((model) => (
               <option key={model.id} value={model.slug}>
                 {model.name}
@@ -191,7 +237,7 @@ export function BookingForm({ models, defaultModel }: BookingFormProps) {
           <FieldError errors={state.fieldErrors?.preferredModel} />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="preferredDate">Preferred date (GMT+4)</Label>
+          <Label htmlFor="preferredDate">{labels.preferredDateLabel}</Label>
           <Input
             id="preferredDate"
             type="date"
@@ -202,7 +248,7 @@ export function BookingForm({ models, defaultModel }: BookingFormProps) {
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="preferredTime">Preferred time (GMT+4)</Label>
+          <Label htmlFor="preferredTime">{labels.preferredTimeLabel}</Label>
           <select
             id="preferredTime"
             value={preferredTime}
@@ -211,9 +257,9 @@ export function BookingForm({ models, defaultModel }: BookingFormProps) {
             required
           >
             <option value="" disabled>
-              Select a time slot
+              {labels.selectTimeSlotOption}
             </option>
-            {TIME_SLOT_OPTIONS.map((slot) => (
+            {timeSlotOptions.map((slot) => (
               <option
                 key={slot.value}
                 value={slot.value}
@@ -223,26 +269,26 @@ export function BookingForm({ models, defaultModel }: BookingFormProps) {
               </option>
             ))}
           </select>
-          <p className="text-xs text-muted-foreground">Available daily between 9:00 AM and 8:00 PM.</p>
+          <p className="text-xs text-muted-foreground">{labels.availableWindow}</p>
           <input type="hidden" name="preferredDateTime" value={preferredDateTime} />
           {isTodaySelected && !hasAvailableSlotsForSelectedDate ? (
-            <p className="text-xs text-muted-foreground">No slots left for today. Please select a later date.</p>
+            <p className="text-xs text-muted-foreground">{labels.noSlotsToday}</p>
           ) : null}
           <FieldError errors={state.fieldErrors?.preferredDateTime} />
         </div>
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="location">Preferred location</Label>
-        <Input id="location" name="location" placeholder="City or dealership" required />
+        <Label htmlFor="location">{labels.locationLabel}</Label>
+        <Input id="location" name="location" placeholder={labels.locationPlaceholder} required />
         <FieldError errors={state.fieldErrors?.location} />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="note">Note (optional)</Label>
+        <Label htmlFor="note">{labels.noteLabel}</Label>
         <Textarea id="note" name="note" rows={4} />
         <FieldError errors={state.fieldErrors?.note} />
       </div>
       {state.error ? <p className="text-sm text-rose-600">{state.error}</p> : null}
-      <SubmitButton />
+      <SubmitButton labels={labels} />
     </form>
   );
 }

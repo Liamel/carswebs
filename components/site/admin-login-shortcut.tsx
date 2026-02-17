@@ -8,7 +8,19 @@ import { Button } from "@/components/ui/button";
 
 const ADMIN_HOTKEY = "mod+shift+a";
 
-export function AdminLoginShortcut() {
+export type AdminLoginShortcutLabels = {
+  hotkeyHint: string;
+  dialogTitle: string;
+  dialogDescription: string;
+  cancel: string;
+  continueWithGoogle: string;
+};
+
+type AdminLoginShortcutProps = {
+  labels: AdminLoginShortcutLabels;
+};
+
+export function AdminLoginShortcut({ labels }: AdminLoginShortcutProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   useHotkeys(
@@ -34,7 +46,7 @@ export function AdminLoginShortcut() {
 
   return (
     <>
-      <span className="hidden text-xs text-muted-foreground sm:inline">Admin: Ctrl/Cmd + Shift + A</span>
+      <span className="hidden text-xs text-muted-foreground sm:inline">{labels.hotkeyHint}</span>
 
       {isOpen ? (
         <div
@@ -49,14 +61,12 @@ export function AdminLoginShortcut() {
             onClick={(event) => event.stopPropagation()}
           >
             <h2 id="admin-login-dialog-title" className="font-display text-2xl font-semibold">
-              Admin login
+              {labels.dialogTitle}
             </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Sign in with your allowlisted Google account to open the CMS dashboard.
-            </p>
+            <p className="mt-2 text-sm text-muted-foreground">{labels.dialogDescription}</p>
             <div className="mt-6 flex justify-end gap-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setIsOpen(false)}>
-                Cancel
+                {labels.cancel}
               </Button>
               <Button
                 type="button"
@@ -66,7 +76,7 @@ export function AdminLoginShortcut() {
                   void signIn("google", { callbackUrl: "/admin" });
                 }}
               >
-                Continue with Google
+                {labels.continueWithGoogle}
               </Button>
             </div>
           </div>

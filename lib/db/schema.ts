@@ -35,10 +35,16 @@ export const cars = pgTable(
   {
     id: serial("id").primaryKey(),
     name: varchar("name", { length: 120 }).notNull(),
+    nameGeo: varchar("name_geo", { length: 120 }).notNull(),
+    nameEn: varchar("name_en", { length: 120 }).notNull(),
+    nameRu: varchar("name_ru", { length: 120 }).notNull(),
     slug: varchar("slug", { length: 140 }).notNull(),
     priceFrom: integer("price_from").notNull(),
     bodyType: varchar("body_type", { length: 80 }).notNull(),
     description: text("description").notNull(),
+    descriptionGeo: text("description_geo").notNull(),
+    descriptionEn: text("description_en").notNull(),
+    descriptionRu: text("description_ru").notNull(),
     featured: boolean("featured").notNull().default(false),
     specs: jsonb("specs").$type<Record<string, string>>().notNull().default(sql`'{}'::jsonb`),
     images: jsonb("images").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
@@ -90,6 +96,23 @@ export const homepageSlides = pgTable("homepage_slides", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const i18nStrings = pgTable(
+  "i18n_strings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    key: text("key").notNull(),
+    geo: text("geo").notNull(),
+    en: text("en").notNull(),
+    ru: text("ru").notNull(),
+    description: text("description"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    keyIdx: uniqueIndex("i18n_strings_key_idx").on(table.key),
+  }),
+);
+
 export const carsRelations = relations(cars, ({ many }) => ({
   bookings: many(bookings),
 }));
@@ -106,4 +129,5 @@ export type Car = typeof cars.$inferSelect;
 export type Booking = typeof bookings.$inferSelect;
 export type ContentEntry = typeof content.$inferSelect;
 export type HomepageSlide = typeof homepageSlides.$inferSelect;
+export type I18nString = typeof i18nStrings.$inferSelect;
 export type BookingStatus = (typeof bookingStatusEnum.enumValues)[number];

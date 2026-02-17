@@ -7,11 +7,14 @@ import { redirect } from "next/navigation";
 
 import { requireAdminSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { bookings, cars, content, homepageSlides } from "@/lib/db/schema";
+import { bookings, cars, content, homepageSlides, i18nStrings } from "@/lib/db/schema";
+import { SUPPORTED_LOCALES } from "@/lib/i18n/config";
+import { withLocalePath } from "@/lib/i18n/path";
 import { bookingStatusSchema } from "@/lib/validations/booking";
 import { carSchema } from "@/lib/validations/car";
 import { homepageContentSchema } from "@/lib/validations/content";
 import { homepageSlideCreateSchema, homepageSlideUpdateSchema } from "@/lib/validations/homepage-slide";
+import { i18nStringCreateSchema, i18nStringUpdateSchema } from "@/lib/validations/i18n-string";
 
 async function assertAdmin() {
   const session = await requireAdminSession();
@@ -51,23 +54,43 @@ function appendFlashToPath(path: string, key: "status" | "error", value: string)
   return `${pathname}?${searchParams.toString()}`;
 }
 
+function revalidateLocalizedPath(pathname: string) {
+  for (const locale of SUPPORTED_LOCALES) {
+    revalidatePath(withLocalePath(locale, pathname));
+  }
+}
+
+function refreshLocalizedPublicPages() {
+  revalidateLocalizedPath("/");
+  revalidateLocalizedPath("/models");
+  revalidateLocalizedPath("/book-test-drive");
+  revalidateLocalizedPath("/about");
+  revalidateLocalizedPath("/contact");
+}
+
 function refreshPublicPages(slugs: string[] = []) {
   revalidateTag("cars", "max");
-  revalidatePath("/");
-  revalidatePath("/models");
+  refreshLocalizedPublicPages();
   revalidatePath("/sitemap.xml");
 
   for (const slug of slugs) {
     if (slug) {
-      revalidatePath(`/models/${slug}`);
+      revalidateLocalizedPath(`/models/${slug}`);
     }
   }
 }
 
 function refreshHomepageSliderPages() {
   revalidateTag("homepage-slides", "max");
-  revalidatePath("/");
+  revalidateLocalizedPath("/");
   revalidatePath("/admin/homepage-slider");
+}
+
+function refreshI18nPages() {
+  revalidateTag("i18n", "max");
+  refreshLocalizedPublicPages();
+  revalidatePath("/sitemap.xml");
+  revalidatePath("/admin/i18n");
 }
 
 function getSingleFile(value: FormDataEntryValue | null) {
@@ -115,14 +138,18 @@ async function uploadSliderImage(file: File) {
 
 export async function createCarAction(formData: FormData) {
   await assertAdmin();
-  const rawName = formData.get("name");
+  const rawGeoName = formData.get("nameGeo");
 
   const parsed = carSchema.safeParse({
-    name: rawName,
-    slug: rawName,
+    nameGeo: rawGeoName,
+    nameEn: formData.get("nameEn"),
+    nameRu: formData.get("nameRu"),
+    slug: rawGeoName,
     priceFrom: formData.get("priceFrom"),
     bodyType: formData.get("bodyType"),
-    description: formData.get("description"),
+    descriptionGeo: formData.get("descriptionGeo"),
+    descriptionEn: formData.get("descriptionEn"),
+    descriptionRu: formData.get("descriptionRu"),
     featured: parseBooleanCheckbox(formData.get("featured")),
     specsPayload: formData.get("specsPayload"),
     imagesPayload: formData.get("imagesPayload"),
@@ -144,11 +171,17 @@ export async function createCarAction(formData: FormData) {
 
   try {
     await db.insert(cars).values({
-      name: parsed.data.name,
+      name: parsed.data.nameGeo,
+      nameGeo: parsed.data.nameGeo,
+      nameEn: parsed.data.nameEn,
+      nameRu: parsed.data.nameRu,
       slug: parsed.data.slug,
       priceFrom: parsed.data.priceFrom,
       bodyType: parsed.data.bodyType,
-      description: parsed.data.description,
+      description: parsed.data.descriptionGeo,
+      descriptionGeo: parsed.data.descriptionGeo,
+      descriptionEn: parsed.data.descriptionEn,
+      descriptionRu: parsed.data.descriptionRu,
       featured: parsed.data.featured,
       specs: parsed.data.specsPayload,
       images: parsed.data.imagesPayload,
@@ -164,7 +197,7 @@ export async function createCarAction(formData: FormData) {
 
 export async function updateCarAction(formData: FormData) {
   await assertAdmin();
-  const rawName = formData.get("name");
+  const rawGeoName = formData.get("nameGeo");
 
   const carId = Number(formData.get("id"));
   if (!Number.isFinite(carId) || carId <= 0) {
@@ -183,11 +216,15 @@ export async function updateCarAction(formData: FormData) {
   }
 
   const parsed = carSchema.safeParse({
-    name: rawName,
-    slug: rawName,
+    nameGeo: rawGeoName,
+    nameEn: formData.get("nameEn"),
+    nameRu: formData.get("nameRu"),
+    slug: rawGeoName,
     priceFrom: formData.get("priceFrom"),
     bodyType: formData.get("bodyType"),
-    description: formData.get("description"),
+    descriptionGeo: formData.get("descriptionGeo"),
+    descriptionEn: formData.get("descriptionEn"),
+    descriptionRu: formData.get("descriptionRu"),
     featured: parseBooleanCheckbox(formData.get("featured")),
     specsPayload: formData.get("specsPayload"),
     imagesPayload: formData.get("imagesPayload"),
@@ -211,11 +248,17 @@ export async function updateCarAction(formData: FormData) {
     await db
       .update(cars)
       .set({
-        name: parsed.data.name,
+        name: parsed.data.nameGeo,
+        nameGeo: parsed.data.nameGeo,
+        nameEn: parsed.data.nameEn,
+        nameRu: parsed.data.nameRu,
         slug: parsed.data.slug,
         priceFrom: parsed.data.priceFrom,
         bodyType: parsed.data.bodyType,
-        description: parsed.data.description,
+        description: parsed.data.descriptionGeo,
+        descriptionGeo: parsed.data.descriptionGeo,
+        descriptionEn: parsed.data.descriptionEn,
+        descriptionRu: parsed.data.descriptionRu,
         featured: parsed.data.featured,
         specs: parsed.data.specsPayload,
         images: parsed.data.imagesPayload,
@@ -345,7 +388,7 @@ export async function updateHomepageContentAction(formData: FormData) {
   }
 
   revalidatePath("/admin/content");
-  revalidatePath("/");
+  revalidateLocalizedPath("/");
   redirect("/admin/content?status=saved");
 }
 
@@ -543,4 +586,120 @@ export async function moveHomepageSlideOrderAction(formData: FormData) {
 
   refreshHomepageSliderPages();
   redirect("/admin/homepage-slider?status=reordered");
+}
+
+export async function createI18nStringAction(formData: FormData) {
+  await assertAdmin();
+
+  const parsed = i18nStringCreateSchema.safeParse({
+    key: formData.get("key"),
+    geo: formData.get("geo"),
+    en: formData.get("en"),
+    ru: formData.get("ru"),
+    description: formData.get("description"),
+  });
+
+  if (!parsed.success) {
+    const errorMessage = parsed.error.issues[0]?.message ?? "Invalid translation payload";
+    redirect(`/admin/i18n?error=${encodeURIComponent(errorMessage)}`);
+  }
+
+  const existingByKey = await db.query.i18nStrings.findFirst({
+    where: eq(i18nStrings.key, parsed.data.key),
+    columns: { id: true },
+  });
+
+  if (existingByKey) {
+    redirect("/admin/i18n?error=Translation+key+already+exists");
+  }
+
+  try {
+    await db.insert(i18nStrings).values({
+      key: parsed.data.key,
+      geo: parsed.data.geo,
+      en: parsed.data.en,
+      ru: parsed.data.ru,
+      description: parsed.data.description,
+      updatedAt: new Date(),
+    });
+  } catch {
+    redirect("/admin/i18n?error=Could+not+create+translation");
+  }
+
+  refreshI18nPages();
+  redirect("/admin/i18n?status=created");
+}
+
+export async function updateI18nStringAction(formData: FormData) {
+  await assertAdmin();
+
+  const parsed = i18nStringUpdateSchema.safeParse({
+    id: formData.get("id"),
+    key: formData.get("key"),
+    geo: formData.get("geo"),
+    en: formData.get("en"),
+    ru: formData.get("ru"),
+    description: formData.get("description"),
+  });
+
+  if (!parsed.success) {
+    const errorMessage = parsed.error.issues[0]?.message ?? "Invalid translation payload";
+    redirect(`/admin/i18n?error=${encodeURIComponent(errorMessage)}`);
+  }
+
+  const existingById = await db.query.i18nStrings.findFirst({
+    where: eq(i18nStrings.id, parsed.data.id),
+    columns: { id: true },
+  });
+
+  if (!existingById) {
+    redirect("/admin/i18n?error=Translation+not+found");
+  }
+
+  const existingByKey = await db.query.i18nStrings.findFirst({
+    where: eq(i18nStrings.key, parsed.data.key),
+    columns: { id: true },
+  });
+
+  if (existingByKey && existingByKey.id !== parsed.data.id) {
+    redirect("/admin/i18n?error=Translation+key+already+exists");
+  }
+
+  try {
+    await db
+      .update(i18nStrings)
+      .set({
+        key: parsed.data.key,
+        geo: parsed.data.geo,
+        en: parsed.data.en,
+        ru: parsed.data.ru,
+        description: parsed.data.description,
+        updatedAt: new Date(),
+      })
+      .where(eq(i18nStrings.id, parsed.data.id));
+  } catch {
+    redirect("/admin/i18n?error=Could+not+update+translation");
+  }
+
+  refreshI18nPages();
+  redirect("/admin/i18n?status=updated");
+}
+
+export async function deleteI18nStringAction(formData: FormData) {
+  await assertAdmin();
+
+  const id = String(formData.get("id") ?? "").trim();
+
+  if (!id) {
+    redirect("/admin/i18n?error=Invalid+translation+ID");
+  }
+
+  try {
+    await db.delete(i18nStrings).where(eq(i18nStrings.id, id));
+  } catch {
+    redirect("/admin/i18n?error=Could+not+delete+translation");
+  }
+
+  refreshI18nPages();
+  redirect("/admin/i18n?status=deleted");
 }

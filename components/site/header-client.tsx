@@ -4,22 +4,43 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { CarsOverlay, type CarsOverlayItem } from "@/components/site/cars-overlay";
-import { AdminLoginShortcut } from "@/components/site/admin-login-shortcut";
+import {
+  CarsOverlay,
+  type CarsOverlayItem,
+  type CarsOverlayLabels,
+} from "@/components/site/cars-overlay";
+import {
+  AdminLoginShortcut,
+  type AdminLoginShortcutLabels,
+} from "@/components/site/admin-login-shortcut";
+import { LanguageSwitcher } from "@/components/site/language-switcher";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import type { Locale } from "@/lib/i18n/config";
+import { withLocalePath } from "@/lib/i18n/path";
 
-type SiteHeaderClientProps = {
-  cars: CarsOverlayItem[];
+type SiteHeaderClientLabels = {
+  brandName: string;
+  navCars: string;
+  navBookTestDrive: string;
+  navAbout: string;
+  navContact: string;
+  bookTestDriveCta: string;
+  openCarsAriaLabel: string;
+  openMenuAriaLabel: string;
+  closeMenuAriaLabel: string;
+  languageSwitcherAriaLabel: string;
+  overlay: CarsOverlayLabels;
+  adminShortcut: AdminLoginShortcutLabels;
 };
 
-const navItems = [
-  { href: "/book-test-drive", label: "Book Test Drive" },
-  { href: "/about", label: "About" },
-  { href: "/contact", label: "Contact" },
-];
+type SiteHeaderClientProps = {
+  locale: Locale;
+  cars: CarsOverlayItem[];
+  labels: SiteHeaderClientLabels;
+};
 
-export function SiteHeaderClient({ cars }: SiteHeaderClientProps) {
+export function SiteHeaderClient({ locale, cars, labels }: SiteHeaderClientProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCarsOverlayOpen, setIsCarsOverlayOpen] = useState(false);
 
@@ -40,12 +61,18 @@ export function SiteHeaderClient({ cars }: SiteHeaderClientProps) {
     setIsMobileMenuOpen(false);
   };
 
+  const navItems = [
+    { href: withLocalePath(locale, "/book-test-drive"), label: labels.navBookTestDrive },
+    { href: withLocalePath(locale, "/about"), label: labels.navAbout },
+    { href: withLocalePath(locale, "/contact"), label: labels.navContact },
+  ];
+
   return (
     <Dialog open={isCarsOverlayOpen} onOpenChange={setIsCarsOverlayOpen}>
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-xl">
-        <div className="container-shell flex h-16 items-center justify-between">
-          <Link href="/" className="font-display text-lg font-semibold tracking-tight">
-            Astra Motors
+        <div className="container-shell flex h-16 items-center justify-between gap-2">
+          <Link href={withLocalePath(locale, "/")} className="font-display text-lg font-semibold tracking-tight">
+            {labels.brandName}
           </Link>
 
           <nav className="hidden items-center gap-6 md:flex">
@@ -54,9 +81,9 @@ export function SiteHeaderClient({ cars }: SiteHeaderClientProps) {
                 type="button"
                 className="text-sm font-semibold text-foreground"
                 aria-haspopup="dialog"
-                aria-label="Open cars showcase"
+                aria-label={labels.openCarsAriaLabel}
               >
-                Cars
+                {labels.navCars}
               </button>
             </DialogTrigger>
 
@@ -68,13 +95,14 @@ export function SiteHeaderClient({ cars }: SiteHeaderClientProps) {
           </nav>
 
           <div className="flex items-center gap-2">
-            <AdminLoginShortcut />
-            <Link href="/book-test-drive" className="hidden sm:inline-flex">
-              <Button size="sm">Book a test drive</Button>
+            <AdminLoginShortcut labels={labels.adminShortcut} />
+            <LanguageSwitcher currentLocale={locale} ariaLabel={labels.languageSwitcherAriaLabel} />
+            <Link href={withLocalePath(locale, "/book-test-drive")} className="hidden sm:inline-flex">
+              <Button size="sm">{labels.bookTestDriveCta}</Button>
             </Link>
             <button
               type="button"
-              aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+              aria-label={isMobileMenuOpen ? labels.closeMenuAriaLabel : labels.openMenuAriaLabel}
               className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background md:hidden"
               onClick={() => setIsMobileMenuOpen((current) => !current)}
             >
@@ -93,7 +121,7 @@ export function SiteHeaderClient({ cars }: SiteHeaderClientProps) {
                   aria-haspopup="dialog"
                   onClick={closeMobileMenu}
                 >
-                  Cars
+                  {labels.navCars}
                 </button>
               </DialogTrigger>
 
@@ -112,7 +140,7 @@ export function SiteHeaderClient({ cars }: SiteHeaderClientProps) {
         ) : null}
       </header>
 
-      <CarsOverlay cars={cars} />
+      <CarsOverlay locale={locale} cars={cars} labels={labels.overlay} />
     </Dialog>
   );
 }

@@ -11,6 +11,9 @@ import {
   DialogIconClose,
   DialogTitle,
 } from "@/components/ui/dialog";
+import type { Locale } from "@/lib/i18n/config";
+import { withLocalePath } from "@/lib/i18n/path";
+import { formatUsdPrice } from "@/lib/i18n/price";
 import { cn } from "@/lib/utils";
 
 export type CarsOverlayItem = {
@@ -18,25 +21,36 @@ export type CarsOverlayItem = {
   name: string;
   priceFrom: number;
   bodyType: string;
+  bodyTypeLabel: string;
   imageUrl: string | null;
 };
 
-type CarsOverlayProps = {
-  cars: CarsOverlayItem[];
+export type CarsOverlayLabels = {
+  dialogTitle: string;
+  dialogDescription: string;
+  closeAriaLabel: string;
+  eyebrow: string;
+  title: string;
+  searchPlaceholder: string;
+  viewAllModels: string;
+  vehicleTypes: string;
+  bookTestDrive: string;
+  discoverModels: string;
+  emptyState: string;
+  allTypes: string;
+  from: string;
 };
 
-const ALL_TYPES_FILTER = "All";
+type CarsOverlayProps = {
+  locale: Locale;
+  cars: CarsOverlayItem[];
+  labels: CarsOverlayLabels;
+};
 
-function formatPrice(price: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(price);
-}
+const ALL_TYPES_VALUE = "__all";
 
-export function CarsOverlay({ cars }: CarsOverlayProps) {
-  const [selectedBodyType, setSelectedBodyType] = useState<string>(ALL_TYPES_FILTER);
+export function CarsOverlay({ locale, cars, labels }: CarsOverlayProps) {
+  const [selectedBodyType, setSelectedBodyType] = useState<string>(ALL_TYPES_VALUE);
   const [searchQuery, setSearchQuery] = useState("");
 
   const sortedCars = useMemo(
@@ -48,18 +62,23 @@ export function CarsOverlay({ cars }: CarsOverlayProps) {
     [cars],
   );
 
-  const bodyTypeOptions = useMemo(() => {
-    const options = Array.from(new Set(sortedCars.map((car) => car.bodyType))).sort((a, b) => a.localeCompare(b));
-    return [ALL_TYPES_FILTER, ...options];
+  const bodyTypeLabelByValue = useMemo(() => {
+    const entries = sortedCars.map((car) => [car.bodyType, car.bodyTypeLabel] as const);
+    return new Map(entries);
   }, [sortedCars]);
 
-  const activeBodyType = bodyTypeOptions.includes(selectedBodyType) ? selectedBodyType : ALL_TYPES_FILTER;
+  const bodyTypeOptions = useMemo(() => {
+    const options = Array.from(new Set(sortedCars.map((car) => car.bodyType))).sort((a, b) => a.localeCompare(b));
+    return [ALL_TYPES_VALUE, ...options];
+  }, [sortedCars]);
+
+  const activeBodyType = bodyTypeOptions.includes(selectedBodyType) ? selectedBodyType : ALL_TYPES_VALUE;
   const normalizedSearch = searchQuery.trim().toLowerCase();
 
   const filteredCars = useMemo(
     () =>
       sortedCars.filter((car) => {
-        const matchesType = activeBodyType === ALL_TYPES_FILTER || car.bodyType === activeBodyType;
+        const matchesType = activeBodyType === ALL_TYPES_VALUE || car.bodyType === activeBodyType;
         const matchesSearch = normalizedSearch.length === 0 || car.name.toLowerCase().includes(normalizedSearch);
 
         return matchesType && matchesSearch;
@@ -70,7 +89,7 @@ export function CarsOverlay({ cars }: CarsOverlayProps) {
   const modelsQuery = useMemo(() => {
     const searchParams = new URLSearchParams();
 
-    if (activeBodyType !== ALL_TYPES_FILTER) {
+    if (activeBodyType !== ALL_TYPES_VALUE) {
       searchParams.append("type", activeBodyType);
     }
 
@@ -81,22 +100,22 @@ export function CarsOverlay({ cars }: CarsOverlayProps) {
     return searchParams;
   }, [activeBodyType, normalizedSearch, searchQuery]);
 
-  const viewAllModelsHref = modelsQuery.toString() ? `/models?${modelsQuery.toString()}` : "/models";
+  const viewAllModelsHref = modelsQuery.toString()
+    ? withLocalePath(locale, `/models?${modelsQuery.toString()}`)
+    : withLocalePath(locale, "/models");
 
   return (
     <DialogContent className="h-dvh w-screen max-w-none rounded-none border-none p-0 sm:h-[94vh] sm:w-[96vw] sm:max-w-[1500px] sm:rounded-2xl sm:border sm:border-border/70">
-      <DialogTitle className="sr-only">Browse Astra Cars</DialogTitle>
-      <DialogDescription className="sr-only">
-        Browse every available model, filter by body type, then open model details.
-      </DialogDescription>
-      <DialogIconClose aria-label="Close cars navigation" />
+      <DialogTitle className="sr-only">{labels.dialogTitle}</DialogTitle>
+      <DialogDescription className="sr-only">{labels.dialogDescription}</DialogDescription>
+      <DialogIconClose aria-label={labels.closeAriaLabel} />
 
       <div className="grid h-full min-h-0 grid-rows-[auto_1fr] bg-[#f3f5f7]">
         <div className="border-b border-border/70 bg-white/95 px-4 py-4 pr-16 sm:px-6 sm:pr-20">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">Model showcase</p>
-              <p className="font-display text-2xl font-semibold sm:text-3xl">All vehicles</p>
+              <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">{labels.eyebrow}</p>
+              <p className="font-display text-2xl font-semibold sm:text-3xl">{labels.title}</p>
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -106,7 +125,7 @@ export function CarsOverlay({ cars }: CarsOverlayProps) {
                   type="search"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search model"
+                  placeholder={labels.searchPlaceholder}
                   className="h-11 w-full rounded-full border border-border bg-white pl-9 pr-4 text-sm"
                 />
               </label>
@@ -116,7 +135,7 @@ export function CarsOverlay({ cars }: CarsOverlayProps) {
                   href={viewAllModelsHref}
                   className="inline-flex h-11 items-center justify-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
                 >
-                  View all models
+                  {labels.viewAllModels}
                 </Link>
               </DialogClose>
             </div>
@@ -125,10 +144,11 @@ export function CarsOverlay({ cars }: CarsOverlayProps) {
 
         <div className="grid min-h-0 grid-cols-1 md:grid-cols-[260px_1fr]">
           <aside className="min-h-0 overflow-y-auto border-b border-border/70 bg-[#f8f9fb] p-4 md:border-r md:border-b-0 md:p-6">
-            <p className="mb-4 text-sm font-semibold text-foreground">Vehicle types</p>
+            <p className="mb-4 text-sm font-semibold text-foreground">{labels.vehicleTypes}</p>
             <div className="space-y-1.5">
               {bodyTypeOptions.map((bodyType) => {
                 const isActive = bodyType === activeBodyType;
+                const label = bodyType === ALL_TYPES_VALUE ? labels.allTypes : bodyTypeLabelByValue.get(bodyType) ?? bodyType;
 
                 return (
                   <button
@@ -140,7 +160,7 @@ export function CarsOverlay({ cars }: CarsOverlayProps) {
                       isActive ? "bg-foreground text-background" : "text-muted-foreground hover:bg-white hover:text-foreground",
                     )}
                   >
-                    <span>{bodyType}</span>
+                    <span>{label}</span>
                   </button>
                 );
               })}
@@ -148,13 +168,16 @@ export function CarsOverlay({ cars }: CarsOverlayProps) {
 
             <div className="mt-8 space-y-2 border-t border-border/70 pt-6">
               <DialogClose asChild>
-                <Link href="/book-test-drive" className="block text-sm font-medium text-foreground transition hover:text-primary">
-                  Book a test drive
+                <Link
+                  href={withLocalePath(locale, "/book-test-drive")}
+                  className="block text-sm font-medium text-foreground transition hover:text-primary"
+                >
+                  {labels.bookTestDrive}
                 </Link>
               </DialogClose>
               <DialogClose asChild>
                 <Link href={viewAllModelsHref} className="block text-sm font-medium text-foreground transition hover:text-primary">
-                  Discover all models
+                  {labels.discoverModels}
                 </Link>
               </DialogClose>
             </div>
@@ -163,15 +186,15 @@ export function CarsOverlay({ cars }: CarsOverlayProps) {
           <section className="min-h-0 overflow-y-auto p-4 sm:p-6">
             {filteredCars.length === 0 ? (
               <div className="rounded-2xl border border-border/70 bg-white p-8 text-sm text-muted-foreground">
-                No models match this filter.
+                {labels.emptyState}
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {filteredCars.map((car) => {
                   const detailQuery = new URLSearchParams(modelsQuery);
                   const detailHref = detailQuery.toString()
-                    ? `/models/${car.slug}?${detailQuery.toString()}`
-                    : `/models/${car.slug}`;
+                    ? withLocalePath(locale, `/models/${car.slug}?${detailQuery.toString()}`)
+                    : withLocalePath(locale, `/models/${car.slug}`);
 
                   return (
                     <DialogClose key={car.slug} asChild>
@@ -193,10 +216,12 @@ export function CarsOverlay({ cars }: CarsOverlayProps) {
 
                         <div className="space-y-1">
                           <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                            {car.bodyType}
+                            {car.bodyTypeLabel}
                           </span>
                           <p className="text-base font-semibold text-foreground">{car.name}</p>
-                          <p className="text-sm text-muted-foreground">From {formatPrice(car.priceFrom)}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {labels.from} {formatUsdPrice(car.priceFrom, locale)}
+                          </p>
                         </div>
                       </Link>
                     </DialogClose>
