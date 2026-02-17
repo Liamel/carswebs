@@ -1,16 +1,19 @@
+import Link from "next/link";
+
 import { createCarAction, deleteCarAction, updateCarAction } from "@/app/admin/(protected)/actions";
 import { AdminFlashToast } from "@/components/admin/admin-flash-toast";
 import { AdminSubmitButton } from "@/components/admin/admin-submit-button";
 import { CarFormFields, type CarSpecDraft } from "@/components/admin/car-form-fields";
 import { DeleteConfirmButton } from "@/components/admin/delete-confirm-button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BODY_TYPE_OPTIONS } from "@/lib/constants/body-types";
-import { getAllCarsForAdmin } from "@/lib/db/queries";
+import { getCarsForAdmin } from "@/lib/db/queries";
 
 export const dynamic = "force-dynamic";
 
 type AdminCarsPageProps = {
-  searchParams: Promise<{ status?: string; error?: string }>;
+  searchParams: Promise<{ status?: string; error?: string; page?: string }>;
 };
 
 function toSpecRows(specs: Record<string, string>): CarSpecDraft[] {
@@ -19,7 +22,12 @@ function toSpecRows(specs: Record<string, string>): CarSpecDraft[] {
 
 export default async function AdminCarsPage({ searchParams }: AdminCarsPageProps) {
   const params = await searchParams;
-  const cars = await getAllCarsForAdmin();
+  const requestedPage = Number.parseInt(params.page ?? "", 10);
+  const activePage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const carsResult = await getCarsForAdmin({ page: activePage, pageSize: 10 });
+  const cars = carsResult.rows;
+  const hasPreviousPage = carsResult.page > 1;
+  const hasNextPage = carsResult.page < carsResult.totalPages;
 
   return (
     <div className="space-y-8">
@@ -55,6 +63,15 @@ export default async function AdminCarsPage({ searchParams }: AdminCarsPageProps
       </Card>
 
       <div className="space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm text-muted-foreground">
+            Showing {cars.length} of {carsResult.totalRows} cars
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Page {carsResult.page} of {carsResult.totalPages}
+          </p>
+        </div>
+
         {cars.map((car) => {
           const specs = toSpecRows(car.specs);
           const previewImage = car.images[0] ?? "";
@@ -113,6 +130,23 @@ export default async function AdminCarsPage({ searchParams }: AdminCarsPageProps
             </Card>
           );
         })}
+
+        <div className="flex items-center justify-end gap-2">
+          {hasPreviousPage ? (
+            <Link href={`/admin/cars?page=${carsResult.page - 1}`}>
+              <Button variant="outline" size="sm">
+                Previous
+              </Button>
+            </Link>
+          ) : null}
+          {hasNextPage ? (
+            <Link href={`/admin/cars?page=${carsResult.page + 1}`}>
+              <Button variant="outline" size="sm">
+                Next
+              </Button>
+            </Link>
+          ) : null}
+        </div>
       </div>
     </div>
   );

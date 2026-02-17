@@ -202,7 +202,7 @@ export function CarsOverlay({ locale, cars, labels }: CarsOverlayProps) {
                         href={detailHref}
                         className="group rounded-2xl border border-border/70 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                       >
-                        <div className="mb-3 rounded-xl bg-gradient-to-b from-slate-50 to-slate-100 p-4">
+                        <div className="mb-3 rounded-xl bg-linear-to-b from-slate-50 to-slate-100 p-4">
                           <div
                             className="h-36 w-full"
                             style={{

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 
 import { HomepageSlider, type HomepageSlide } from "@/components/site/homepage-slider";
 import { MarketingLayout } from "@/components/site/marketing-layout";
@@ -14,7 +15,7 @@ import { withLocalePath } from "@/lib/i18n/path";
 import { formatUsdPrice } from "@/lib/i18n/price";
 import { getTranslator } from "@/lib/i18n/server";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 type HomePageProps = {
   params: Promise<{ locale: string }>;
@@ -109,29 +110,31 @@ export default async function HomePage({ params }: HomePageProps) {
             featuredCars.map((car) => {
               const bodyTypeKey = getBodyTypeTranslationKey(car.bodyType);
               const bodyTypeLabel = bodyTypeKey ? t(bodyTypeKey) : car.bodyType;
+              const localizedName = getLocalizedCarName(car, locale);
+              const localizedDescription = getLocalizedCarDescription(car, locale);
 
               return (
                 <Card key={car.id} className="h-full overflow-hidden border-border/60 py-0">
                   <div className="hero-shine border-b border-border/60">
-                    <div
-                      className="h-60 w-full"
-                      style={{
-                        backgroundImage: car.images[0] ? `url(${car.images[0]})` : undefined,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        backgroundRepeat: "no-repeat",
-                      }}
-                    />
+                    <div className="relative h-60 w-full">
+                      {car.images[0] ? (
+                        <Image
+                          src={car.images[0]}
+                          alt={localizedName}
+                          fill
+                          sizes="(max-width: 768px) 100vw, 33vw"
+                          className="object-cover"
+                        />
+                      ) : null}
+                    </div>
                   </div>
                   <CardHeader className="pb-0">
                     <CardTitle className="font-display line-clamp-2 text-3xl leading-tight capitalize">
-                      {getLocalizedCarName(car, locale)}
+                      {localizedName}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="flex flex-1 flex-col gap-4">
-                    <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-                      {getLocalizedCarDescription(car, locale)}
-                    </p>
+                    <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">{localizedDescription}</p>
                     <div className="mt-auto flex items-center justify-between gap-3 text-sm">
                       <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">{bodyTypeLabel}</span>
                       <span className="font-semibold">

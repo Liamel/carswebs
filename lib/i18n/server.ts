@@ -1,5 +1,6 @@
 import { asc } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
+import { cache } from "react";
 
 import { db } from "@/lib/db";
 import { i18nStrings } from "@/lib/db/schema";
@@ -45,7 +46,7 @@ function resolveRowValue(row: I18nRow, locale: Locale) {
   return row.key;
 }
 
-export async function getLocaleMessages(locale: Locale) {
+const getLocaleMessagesRequestCached = cache(async (locale: Locale) => {
   const rows = await getI18nRowsCached();
   const messages: Record<string, string> = {};
 
@@ -54,13 +55,21 @@ export async function getLocaleMessages(locale: Locale) {
   }
 
   return messages;
+});
+
+export async function getLocaleMessages(locale: Locale) {
+  return getLocaleMessagesRequestCached(locale);
 }
 
-export async function getTranslator(locale: Locale) {
+const getTranslatorRequestCached = cache(async (locale: Locale) => {
   const messages = await getLocaleMessages(locale);
 
   return {
     messages,
     t: createTranslator(messages),
   };
+});
+
+export async function getTranslator(locale: Locale) {
+  return getTranslatorRequestCached(locale);
 }

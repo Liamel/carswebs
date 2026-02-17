@@ -2,6 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { useSearchParams } from "next/navigation";
 
 import { submitBookingAction, type BookingActionState } from "@/app/book-test-drive/actions";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,6 @@ type BookingFormProps = {
   locale: Locale;
   labels: BookingFormLabels;
   models: ModelOption[];
-  defaultModel?: string;
 };
 
 const initialState: BookingActionState = {};
@@ -152,8 +152,10 @@ function FieldError({ errors }: { errors?: string[] }) {
   return <p className="text-sm text-rose-600">{errors[0]}</p>;
 }
 
-export function BookingForm({ locale, labels, models, defaultModel }: BookingFormProps) {
+export function BookingForm({ locale, labels, models }: BookingFormProps) {
   const [state, formAction] = useActionState(submitBookingAction, initialState);
+  const searchParams = useSearchParams();
+  const defaultModel = searchParams.get("model")?.trim() ?? "";
   const bookingNow = useMemo(() => getCurrentBookingDateMeta(new Date()), []);
   const minimumPreferredDate = bookingNow.dateValue;
   const timeSlotOptions = useMemo(() => buildTimeSlotOptions(locale), [locale]);

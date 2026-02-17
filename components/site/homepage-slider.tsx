@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { Autoplay, A11y } from "swiper/modules";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -87,10 +88,20 @@ export function HomepageSlider({ slides, labels }: HomepageSliderProps) {
               <article className="relative min-h-[420px] md:min-h-[520px]">
                 <div
                   className="absolute inset-0"
+                >
+                  <Image
+                    src={slide.imageUrl}
+                    alt={slide.title}
+                    fill
+                    priority={index === 0}
+                    sizes="(max-width: 768px) 100vw, 1400px"
+                    className="object-cover"
+                  />
+                </div>
+                <div
+                  className="absolute inset-0"
                   style={{
-                    backgroundImage: `linear-gradient(110deg, rgba(7, 18, 36, 0.78), rgba(7, 18, 36, 0.28)), url(${slide.imageUrl})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
+                    backgroundImage: "linear-gradient(110deg, rgba(7, 18, 36, 0.78), rgba(7, 18, 36, 0.28))",
                   }}
                 />
                 <div className="relative z-10 flex min-h-[420px] items-end p-8 md:min-h-[520px] md:p-14">

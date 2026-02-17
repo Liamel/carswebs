@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import { FinanceCalculator } from "@/components/finance/finance-calculator";
@@ -7,7 +8,8 @@ import { MarketingLayout } from "@/components/site/marketing-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCarBySlug } from "@/lib/db/queries";
+import { getCarBySlug, getCarSlugs } from "@/lib/db/queries";
+import { SUPPORTED_LOCALES } from "@/lib/i18n/config";
 import { buildLocalizedMetadata } from "@/lib/i18n/metadata";
 import { getBodyTypeTranslationKey } from "@/lib/i18n/body-type";
 import { getLocalizedCarDescription, getLocalizedCarName } from "@/lib/i18n/cars";
@@ -16,12 +18,18 @@ import { withLocalePath } from "@/lib/i18n/path";
 import { formatUsdPrice } from "@/lib/i18n/price";
 import { getTranslator } from "@/lib/i18n/server";
 
-export const dynamic = "force-dynamic";
+export const dynamicParams = true;
+export const revalidate = 300;
+export const dynamic = "force-static";
 
 type ModelDetailPageProps = {
   params: Promise<{ locale: string; slug: string }>;
-  searchParams: Promise<{ search?: string; type?: string | string[]; featured?: string }>;
 };
+
+export async function generateStaticParams() {
+  const rows = await getCarSlugs();
+  return SUPPORTED_LOCALES.flatMap((locale) => rows.map(({ slug }) => ({ locale, slug })));
+}
 
 export async function generateMetadata({ params }: ModelDetailPageProps): Promise<Metadata> {
   const { locale: rawLocale, slug } = await params;
@@ -47,41 +55,15 @@ export async function generateMetadata({ params }: ModelDetailPageProps): Promis
   });
 }
 
-function appendMultiValue(searchParams: URLSearchParams, key: string, value: string | string[] | undefined) {
-  if (!value) {
-    return;
-  }
-
-  const values = Array.isArray(value) ? value : [value];
-
-  for (const entry of values.map((item) => item.trim()).filter(Boolean)) {
-    searchParams.append(key, entry);
-  }
-}
-
-export default async function ModelDetailPage({ params, searchParams }: ModelDetailPageProps) {
-  const [{ locale: rawLocale, slug }, resolvedSearchParams] = await Promise.all([params, searchParams]);
+export default async function ModelDetailPage({ params }: ModelDetailPageProps) {
+  const { locale: rawLocale, slug } = await params;
   const locale = parseLocaleOrNotFound(rawLocale);
   const [car, { t }] = await Promise.all([getCarBySlug(slug), getTranslator(locale)]);
 
   if (!car) {
     redirect(withLocalePath(locale, "/models"));
   }
-
-  const modelsQueryParams = new URLSearchParams();
-
-  if (typeof resolvedSearchParams.search === "string" && resolvedSearchParams.search.trim()) {
-    modelsQueryParams.set("search", resolvedSearchParams.search.trim());
-  }
-
-  appendMultiValue(modelsQueryParams, "type", resolvedSearchParams.type);
-
-  if (resolvedSearchParams.featured === "1") {
-    modelsQueryParams.set("featured", "1");
-  }
-
-  const backToModelsPath = modelsQueryParams.toString() ? `/models?${modelsQueryParams.toString()}` : "/models";
-  const backToModelsHref = withLocalePath(locale, backToModelsPath);
+  const backToModelsHref = withLocalePath(locale, "/models");
   const bodyTypeKey = getBodyTypeTranslationKey(car.bodyType);
   const bodyTypeLabel = bodyTypeKey ? t(bodyTypeKey) : car.bodyType;
   const localizedCarName = getLocalizedCarName(car, locale);
@@ -115,15 +97,26 @@ export default async function ModelDetailPage({ params, searchParams }: ModelDet
               {(car.images.length ? car.images : ["", "", ""]).slice(0, 3).map((image, index) => (
                 <div
                   key={`${car.slug}-${index}`}
-                  className="h-40 rounded-2xl border border-border/70 bg-muted"
-                  style={{
-                    backgroundImage: image
-                      ? `linear-gradient(145deg, rgba(255,255,255,0.35), rgba(15, 118, 110, 0.18)), url(${image})`
-                      : undefined,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                  }}
-                />
+                  className="relative h-40 overflow-hidden rounded-2xl border border-border/70 bg-muted"
+                >
+                  {image ? (
+                    <>
+                      <Image
+                        src={image}
+                        alt={`${localizedCarName} ${index + 1}`}
+                        fill
+                        sizes="(max-width: 640px) 100vw, 33vw"
+                        className="object-cover"
+                      />
+                      <div
+                        className="absolute inset-0"
+                        style={{
+                          backgroundImage: "linear-gradient(145deg, rgba(255,255,255,0.35), rgba(15, 118, 110, 0.18))",
+                        }}
+                      />
+                    </>
+                  ) : null}
+                </div>
               ))}
             </div>
           </div>

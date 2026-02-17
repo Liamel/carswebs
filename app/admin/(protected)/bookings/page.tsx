@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { updateBookingStatusAction } from "@/app/admin/(protected)/actions";
 import { AdminFlashToast } from "@/components/admin/admin-flash-toast";
 import { BookingDetailsDialog } from "@/components/admin/booking-details-dialog";
@@ -5,6 +7,7 @@ import { BookingsFilters } from "@/components/admin/bookings-filters";
 import { BookingStatusSelect } from "@/components/admin/booking-status-select";
 import { AdminSubmitButton } from "@/components/admin/admin-submit-button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getBookingsForAdmin } from "@/lib/db/queries";
@@ -14,7 +17,7 @@ export const dynamic = "force-dynamic";
 type FilterValue = "ALL" | "PENDING" | "CONFIRMED" | "CANCELLED";
 
 type AdminBookingsPageProps = {
-  searchParams: Promise<{ status?: string; error?: string; filter?: string; q?: string }>;
+  searchParams: Promise<{ status?: string; error?: string; filter?: string; q?: string; page?: string }>;
 };
 
 function statusBadge(status: string) {
@@ -35,7 +38,12 @@ function normalizeFilter(input: string | undefined): FilterValue {
   return "ALL";
 }
 
-function buildReturnToPath(filter: FilterValue, query: string) {
+function normalizePage(input: string | undefined) {
+  const parsed = Number.parseInt(input ?? "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
+function buildReturnToPath(filter: FilterValue, query: string, page = 1) {
   const searchParams = new URLSearchParams();
 
   if (filter !== "ALL") {
@@ -47,6 +55,10 @@ function buildReturnToPath(filter: FilterValue, query: string) {
     searchParams.set("q", trimmedQuery);
   }
 
+  if (page > 1) {
+    searchParams.set("page", String(page));
+  }
+
   const serialized = searchParams.toString();
   return serialized ? `/admin/bookings?${serialized}` : "/admin/bookings";
 }
@@ -55,11 +67,17 @@ export default async function AdminBookingsPage({ searchParams }: AdminBookingsP
   const params = await searchParams;
   const activeFilter = normalizeFilter(params.filter);
   const activeQuery = params.q?.trim() ?? "";
-  const bookingRows = await getBookingsForAdmin({
+  const activePage = normalizePage(params.page);
+  const bookingResult = await getBookingsForAdmin({
     status: activeFilter === "ALL" ? undefined : activeFilter,
     search: activeQuery || undefined,
+    page: activePage,
+    pageSize: 20,
   });
-  const returnTo = buildReturnToPath(activeFilter, activeQuery);
+  const bookingRows = bookingResult.rows;
+  const returnTo = buildReturnToPath(activeFilter, activeQuery, bookingResult.page);
+  const hasPreviousPage = bookingResult.page > 1;
+  const hasNextPage = bookingResult.page < bookingResult.totalPages;
 
   return (
     <div className="space-y-8">
@@ -83,6 +101,15 @@ export default async function AdminBookingsPage({ searchParams }: AdminBookingsP
           <CardTitle>All bookings</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-sm text-muted-foreground">
+              Showing {bookingRows.length} of {bookingResult.totalRows} bookings
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Page {bookingResult.page} of {bookingResult.totalPages}
+            </p>
+          </div>
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -146,6 +173,23 @@ export default async function AdminBookingsPage({ searchParams }: AdminBookingsP
               )}
             </TableBody>
           </Table>
+
+          <div className="mt-4 flex items-center justify-end gap-2">
+            {hasPreviousPage ? (
+              <Link href={buildReturnToPath(activeFilter, activeQuery, bookingResult.page - 1)}>
+                <Button variant="outline" size="sm">
+                  Previous
+                </Button>
+              </Link>
+            ) : null}
+            {hasNextPage ? (
+              <Link href={buildReturnToPath(activeFilter, activeQuery, bookingResult.page + 1)}>
+                <Button variant="outline" size="sm">
+                  Next
+                </Button>
+              </Link>
+            ) : null}
+          </div>
         </CardContent>
       </Card>
     </div>

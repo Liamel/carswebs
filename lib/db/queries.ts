@@ -1,5 +1,6 @@
-import { and, asc, count, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
+import { cache } from "react";
 
 import { db } from "@/lib/db";
 import { bookings, cars, content, homepageSlides, i18nStrings } from "@/lib/db/schema";
@@ -28,28 +29,40 @@ export type CarsFilters = {
   featuredOnly?: boolean;
 };
 
+const getAllCarsCached = unstable_cache(
+  async () => {
+    return db.query.cars.findMany({
+      orderBy: [asc(cars.priceFrom), asc(cars.name)],
+    });
+  },
+  ["all-cars"],
+  { revalidate: 3600, tags: ["cars"] },
+);
+
+const getAllCarsRequestCached = cache(async () => {
+  return getAllCarsCached();
+});
+
 export async function getCars(params?: CarsFilters, locale: Locale = "geo") {
-  const filters = [];
+  const rows = await getAllCarsRequestCached();
   const search = params?.search?.trim();
-  const bodyTypes = [...new Set((params?.bodyTypes ?? []).map((value) => value.trim()).filter(Boolean))];
-
-  if (bodyTypes.length > 0) {
-    filters.push(inArray(cars.bodyType, bodyTypes));
-  }
-
-  if (params?.featuredOnly) {
-    filters.push(eq(cars.featured, true));
-  }
-
-  const rows = await db.query.cars.findMany({
-    where: filters.length ? and(...filters) : undefined,
-    orderBy: [asc(cars.priceFrom), asc(cars.name)],
-  });
-
+  const normalizedBodyTypes = new Set(
+    (params?.bodyTypes ?? [])
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
+  );
   const normalizedSearch = search?.toLowerCase() ?? "";
 
   return rows
     .filter((car) => {
+      if (normalizedBodyTypes.size > 0 && !normalizedBodyTypes.has(car.bodyType.trim().toLowerCase())) {
+        return false;
+      }
+
+      if (params?.featuredOnly && !car.featured) {
+        return false;
+      }
+
       if (!normalizedSearch) {
         return true;
       }
@@ -122,10 +135,40 @@ export async function getCarsOverlaySummary(locale: Locale): Promise<CarsOverlay
     .sort((left, right) => left.bodyType.localeCompare(right.bodyType) || left.priceFrom - right.priceFrom || left.name.localeCompare(right.name));
 }
 
+const getCarSlugsCached = unstable_cache(
+  async () => {
+    return db.select({ slug: cars.slug }).from(cars).orderBy(asc(cars.slug));
+  },
+  ["car-slugs"],
+  { revalidate: 3600, tags: ["cars"] },
+);
+
+export async function getCarSlugs() {
+  return getCarSlugsCached();
+}
+
+const getCarBySlugCached = unstable_cache(
+  async (slug: string) => {
+    return db.query.cars.findFirst({
+      where: eq(cars.slug, slug),
+    });
+  },
+  ["car-by-slug"],
+  { revalidate: 3600, tags: ["cars"] },
+);
+
+const getCarBySlugRequestCached = cache(async (slug: string) => {
+  return getCarBySlugCached(slug);
+});
+
 export async function getCarBySlug(slug: string) {
-  return db.query.cars.findFirst({
-    where: eq(cars.slug, slug),
-  });
+  const normalizedSlug = slug.trim();
+
+  if (!normalizedSlug) {
+    return null;
+  }
+
+  return getCarBySlugRequestCached(normalizedSlug);
 }
 
 const getActiveHomepageSlidesCached = unstable_cache(
@@ -150,16 +193,22 @@ export async function getHomepageSlidesForAdmin() {
 }
 
 export async function getDashboardStats() {
-  const [{ totalCars }] = await db.select({ totalCars: count(cars.id) }).from(cars);
-  const [{ totalBookings }] = await db.select({ totalBookings: count(bookings.id) }).from(bookings);
-  const [{ pendingBookings }] = await db
-    .select({ pendingBookings: count(bookings.id) })
-    .from(bookings)
-    .where(eq(bookings.status, "PENDING"));
-  const [{ featuredCars }] = await db
-    .select({ featuredCars: count(cars.id) })
-    .from(cars)
-    .where(eq(cars.featured, true));
+  const [totalCarsRows, totalBookingsRows, pendingBookingsRows, featuredCarsRows] = await Promise.all([
+    db.select({ totalCars: count(cars.id) }).from(cars),
+    db.select({ totalBookings: count(bookings.id) }).from(bookings),
+    db
+      .select({ pendingBookings: count(bookings.id) })
+      .from(bookings)
+      .where(eq(bookings.status, "PENDING")),
+    db
+      .select({ featuredCars: count(cars.id) })
+      .from(cars)
+      .where(eq(cars.featured, true)),
+  ]);
+  const [{ totalCars }] = totalCarsRows;
+  const [{ totalBookings }] = totalBookingsRows;
+  const [{ pendingBookings }] = pendingBookingsRows;
+  const [{ featuredCars }] = featuredCarsRows;
 
   return {
     totalCars,
@@ -169,20 +218,84 @@ export async function getDashboardStats() {
   };
 }
 
-export async function getAllCarsForAdmin() {
-  return db.query.cars.findMany({
-    orderBy: [desc(cars.updatedAt)],
-  });
+type PaginationOptions = {
+  page?: number;
+  pageSize?: number;
+};
+
+function normalizePagination(options?: PaginationOptions) {
+  const rawPage = options?.page ?? 1;
+  const rawPageSize = options?.pageSize ?? 20;
+  const page = Number.isFinite(rawPage) ? Math.max(1, Math.floor(rawPage)) : 1;
+  const pageSize = Number.isFinite(rawPageSize) ? Math.min(100, Math.max(1, Math.floor(rawPageSize))) : 20;
+  const offset = (page - 1) * pageSize;
+
+  return { page, pageSize, offset };
+}
+
+export type AdminCarsResult = {
+  rows: Awaited<ReturnType<typeof db.query.cars.findMany>>;
+  totalRows: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export async function getCarsForAdmin(options?: PaginationOptions): Promise<AdminCarsResult> {
+  const { page, pageSize, offset } = normalizePagination(options);
+  const [rows, totalRowsResult] = await Promise.all([
+    db.query.cars.findMany({
+      orderBy: [desc(cars.updatedAt)],
+      limit: pageSize,
+      offset,
+    }),
+    db.select({ totalRows: count(cars.id) }).from(cars),
+  ]);
+  const totalRows = totalRowsResult[0]?.totalRows ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+
+  return {
+    rows,
+    totalRows,
+    page,
+    pageSize,
+    totalPages,
+  };
 }
 
 export type AdminBookingsFilters = {
   status?: "PENDING" | "CONFIRMED" | "CANCELLED";
   search?: string;
+  page?: number;
+  pageSize?: number;
 };
 
-export async function getBookingsForAdmin(filters?: AdminBookingsFilters) {
+export type AdminBookingsResult = {
+  rows: Array<{
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+    location: string;
+    preferredDateTime: Date;
+    status: "PENDING" | "CONFIRMED" | "CANCELLED";
+    note: string | null;
+    carName: string | null;
+    createdAt: Date;
+  }>;
+  totalRows: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export async function getBookingsForAdmin(filters?: AdminBookingsFilters): Promise<AdminBookingsResult> {
   const whereClauses = [];
   const search = filters?.search?.trim();
+  const { page, pageSize, offset } = normalizePagination({
+    page: filters?.page,
+    pageSize: filters?.pageSize,
+  });
 
   if (filters?.status) {
     whereClauses.push(eq(bookings.status, filters.status));
@@ -198,23 +311,39 @@ export async function getBookingsForAdmin(filters?: AdminBookingsFilters) {
     );
   }
 
-  return db
-    .select({
-      id: bookings.id,
-      name: bookings.name,
-      email: bookings.email,
-      phone: bookings.phone,
-      location: bookings.location,
-      preferredDateTime: bookings.preferredDateTime,
-      status: bookings.status,
-      note: bookings.note,
-      carName: cars.name,
-      createdAt: bookings.createdAt,
-    })
-    .from(bookings)
-    .leftJoin(cars, eq(bookings.carId, cars.id))
-    .where(whereClauses.length > 0 ? and(...whereClauses) : undefined)
-    .orderBy(desc(bookings.createdAt));
+  const whereCondition = whereClauses.length > 0 ? and(...whereClauses) : undefined;
+  const [rows, totalRowsResult] = await Promise.all([
+    db
+      .select({
+        id: bookings.id,
+        name: bookings.name,
+        email: bookings.email,
+        phone: bookings.phone,
+        location: bookings.location,
+        preferredDateTime: bookings.preferredDateTime,
+        status: bookings.status,
+        note: bookings.note,
+        carName: cars.name,
+        createdAt: bookings.createdAt,
+      })
+      .from(bookings)
+      .leftJoin(cars, eq(bookings.carId, cars.id))
+      .where(whereCondition)
+      .orderBy(desc(bookings.createdAt))
+      .limit(pageSize)
+      .offset(offset),
+    db.select({ totalRows: count(bookings.id) }).from(bookings).where(whereCondition),
+  ]);
+  const totalRows = totalRowsResult[0]?.totalRows ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+
+  return {
+    rows,
+    totalRows,
+    page,
+    pageSize,
+    totalPages,
+  };
 }
 
 export async function getContentEntryByKey(key: string) {

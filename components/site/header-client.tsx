@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 import {
   CarsOverlay,
@@ -96,7 +96,9 @@ export function SiteHeaderClient({ locale, cars, labels }: SiteHeaderClientProps
 
           <div className="flex items-center gap-2">
             <AdminLoginShortcut labels={labels.adminShortcut} />
-            <LanguageSwitcher currentLocale={locale} ariaLabel={labels.languageSwitcherAriaLabel} />
+            <Suspense fallback={<div className="h-8 w-[7.5rem] rounded-full border border-border/80 bg-background/90" />}>
+              <LanguageSwitcher currentLocale={locale} ariaLabel={labels.languageSwitcherAriaLabel} />
+            </Suspense>
             <Link href={withLocalePath(locale, "/book-test-drive")} className="hidden sm:inline-flex">
               <Button size="sm">{labels.bookTestDriveCta}</Button>
             </Link>

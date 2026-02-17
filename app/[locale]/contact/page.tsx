@@ -6,6 +6,8 @@ import { buildLocalizedMetadata } from "@/lib/i18n/metadata";
 import { resolveLocaleParam } from "@/lib/i18n/locale-param";
 import { getTranslator } from "@/lib/i18n/server";
 
+export const revalidate = 3600;
+
 type ContactPageProps = {
   params: Promise<{ locale: string }>;
 };

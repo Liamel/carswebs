@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { AdminCommandPalette } from "@/components/admin/admin-command-palette";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { requireAdminSession } from "@/lib/auth";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
+import { getAdminCommandPaletteLabels } from "@/lib/i18n/admin-command-palette-labels";
 
 type ProtectedAdminLayoutProps = {
   children: ReactNode;
@@ -15,5 +18,12 @@ export default async function ProtectedAdminLayout({ children }: ProtectedAdminL
     redirect("/admin/login?error=Unauthorized");
   }
 
-  return <AdminShell email={session.user.email}>{children}</AdminShell>;
+  const paletteLabels = await getAdminCommandPaletteLabels(DEFAULT_LOCALE);
+
+  return (
+    <AdminShell email={session.user.email}>
+      {children}
+      <AdminCommandPalette isAdmin labels={paletteLabels} />
+    </AdminShell>
+  );
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,8 @@ type ModelCardProps = {
 };
 
 export function ModelCard({ car, locale, bodyTypeLabel, labels, modelsQueryString }: ModelCardProps) {
-  const image = car.images[0] ?? "/models/placeholder.jpg";
+  const image = car.images[0] ?? null;
+  const localizedName = getLocalizedCarName(car, locale);
   const detailPath = modelsQueryString ? `/models/${car.slug}?${modelsQueryString}` : `/models/${car.slug}`;
   const detailHref = withLocalePath(locale, detailPath);
   const bookingHref = withLocalePath(locale, `/book-test-drive?model=${car.slug}`);
@@ -31,20 +33,22 @@ export function ModelCard({ car, locale, bodyTypeLabel, labels, modelsQueryStrin
   return (
     <Card className="h-full overflow-hidden border-border/60 py-0">
       <div className="hero-shine border-b border-border/60 p-4">
-        <div
-          className="h-44 w-full"
-          style={{
-            backgroundImage: image ? `url(${image})` : undefined,
-            backgroundSize: "contain",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
-          }}
-        />
+        <div className="relative h-44 w-full">
+          {image ? (
+            <Image
+              src={image}
+              alt={localizedName}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1536px) 50vw, 33vw"
+              className="object-contain"
+            />
+          ) : null}
+        </div>
       </div>
       <CardHeader className="pb-0">
         <div className="flex items-start justify-between gap-3">
           <CardTitle className="font-display line-clamp-2 text-3xl leading-tight capitalize">
-            {getLocalizedCarName(car, locale)}
+            {localizedName}
           </CardTitle>
           {car.featured ? <Badge variant="success">{labels.featured}</Badge> : null}
         </div>

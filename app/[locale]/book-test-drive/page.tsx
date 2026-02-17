@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { BookingForm } from "@/components/bookings/booking-form";
 import { MarketingLayout } from "@/components/site/marketing-layout";
@@ -8,11 +9,10 @@ import { buildLocalizedMetadata } from "@/lib/i18n/metadata";
 import { resolveLocaleParam } from "@/lib/i18n/locale-param";
 import { getTranslator } from "@/lib/i18n/server";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 type BookTestDrivePageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ model?: string }>;
 };
 
 export async function generateMetadata({ params }: BookTestDrivePageProps): Promise<Metadata> {
@@ -27,9 +27,8 @@ export async function generateMetadata({ params }: BookTestDrivePageProps): Prom
   });
 }
 
-export default async function BookTestDrivePage({ params, searchParams }: BookTestDrivePageProps) {
+export default async function BookTestDrivePage({ params }: BookTestDrivePageProps) {
   const locale = await resolveLocaleParam(params);
-  const resolvedSearchParams = await searchParams;
   const [models, { t }] = await Promise.all([getModelOptions(locale), getTranslator(locale)]);
 
   return (
@@ -41,28 +40,29 @@ export default async function BookTestDrivePage({ params, searchParams }: BookTe
         <div className="mt-8 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
           <Card className="bg-white/92">
             <CardContent className="pt-6">
-              <BookingForm
-                locale={locale}
-                models={models}
-                defaultModel={resolvedSearchParams.model}
-                labels={{
-                  submit: t("booking.form.submit"),
-                  submitting: t("booking.form.submitting"),
-                  nameLabel: t("booking.form.name"),
-                  emailLabel: t("booking.form.email"),
-                  phoneLabel: t("booking.form.phone"),
-                  preferredModelLabel: t("booking.form.preferredModel"),
-                  anyModelOption: t("booking.form.anyModel"),
-                  preferredDateLabel: t("booking.form.preferredDate"),
-                  preferredTimeLabel: t("booking.form.preferredTime"),
-                  selectTimeSlotOption: t("booking.form.selectTimeSlot"),
-                  availableWindow: t("booking.form.availableWindow"),
-                  noSlotsToday: t("booking.form.noSlotsToday"),
-                  locationLabel: t("booking.form.location"),
-                  locationPlaceholder: t("booking.form.locationPlaceholder"),
-                  noteLabel: t("booking.form.note"),
-                }}
-              />
+              <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl bg-muted/30" />}>
+                <BookingForm
+                  locale={locale}
+                  models={models}
+                  labels={{
+                    submit: t("booking.form.submit"),
+                    submitting: t("booking.form.submitting"),
+                    nameLabel: t("booking.form.name"),
+                    emailLabel: t("booking.form.email"),
+                    phoneLabel: t("booking.form.phone"),
+                    preferredModelLabel: t("booking.form.preferredModel"),
+                    anyModelOption: t("booking.form.anyModel"),
+                    preferredDateLabel: t("booking.form.preferredDate"),
+                    preferredTimeLabel: t("booking.form.preferredTime"),
+                    selectTimeSlotOption: t("booking.form.selectTimeSlot"),
+                    availableWindow: t("booking.form.availableWindow"),
+                    noSlotsToday: t("booking.form.noSlotsToday"),
+                    locationLabel: t("booking.form.location"),
+                    locationPlaceholder: t("booking.form.locationPlaceholder"),
+                    noteLabel: t("booking.form.note"),
+                  }}
+                />
+              </Suspense>
             </CardContent>
           </Card>
           <Card className="hero-shine">

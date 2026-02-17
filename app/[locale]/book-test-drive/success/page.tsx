@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 
+import { BookingSuccessReference } from "@/components/bookings/booking-success-reference";
 import { MarketingLayout } from "@/components/site/marketing-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,9 +11,10 @@ import { resolveLocaleParam } from "@/lib/i18n/locale-param";
 import { withLocalePath } from "@/lib/i18n/path";
 import { getTranslator } from "@/lib/i18n/server";
 
+export const revalidate = 300;
+
 type SuccessPageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ booking?: string }>;
 };
 
 export async function generateMetadata({ params }: SuccessPageProps): Promise<Metadata> {
@@ -26,9 +29,8 @@ export async function generateMetadata({ params }: SuccessPageProps): Promise<Me
   });
 }
 
-export default async function BookingSuccessPage({ params, searchParams }: SuccessPageProps) {
+export default async function BookingSuccessPage({ params }: SuccessPageProps) {
   const locale = await resolveLocaleParam(params);
-  const resolvedSearchParams = await searchParams;
   const { t } = await getTranslator(locale);
 
   return (
@@ -40,9 +42,12 @@ export default async function BookingSuccessPage({ params, searchParams }: Succe
           </CardHeader>
           <CardContent className="space-y-4 text-muted-foreground">
             <p>{t("booking.success.description")}</p>
-            {resolvedSearchParams.booking ? (
-              <p className="text-sm">{t("booking.success.reference", { id: resolvedSearchParams.booking })}</p>
-            ) : null}
+            <Suspense fallback={null}>
+              <BookingSuccessReference
+                className="text-sm"
+                template={t("booking.success.reference", { id: "{id}" })}
+              />
+            </Suspense>
             <div className="flex gap-2">
               <Link href={withLocalePath(locale, "/models")}>
                 <Button variant="outline">{t("booking.success.browseModels")}</Button>
