@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f6f7f9;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --muted: #e8ecef;
+  --muted-foreground: #5a6371;
+  --primary: #0f766e;
+  --primary-foreground: #f7fffd;
+  --secondary: #d9e3eb;
+  --secondary-foreground: #0f172a;
+  --accent: #d7ebe5;
+  --accent-foreground: #0f172a;
+  --border: #d8dde5;
+  --ring: #0f766e;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --font-sans: "Avenir Next", "Montserrat", "Segoe UI", sans-serif;
+  --font-display: "Futura", "Avenir Next", "Trebuchet MS", sans-serif;
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background:
+    radial-gradient(circle at 15% 20%, rgba(15, 118, 110, 0.12) 0, rgba(15, 118, 110, 0) 34%),
+    radial-gradient(circle at 85% 10%, rgba(14, 116, 144, 0.1) 0, rgba(14, 116, 144, 0) 30%),
+    var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+}
+
+.container-shell {
+  margin-inline: auto;
+  width: min(1120px, calc(100vw - 2rem));
+}
+
+.hero-shine {
+  background:
+    linear-gradient(120deg, rgba(15, 118, 110, 0.2), rgba(6, 95, 70, 0.12)),
+    linear-gradient(180deg, #ffffff, #eef3f6);
+}
