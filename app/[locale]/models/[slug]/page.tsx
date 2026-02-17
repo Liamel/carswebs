@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { FinanceCalculator } from "@/components/finance/finance-calculator";
 import { MarketingLayout } from "@/components/site/marketing-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -83,6 +84,8 @@ export default async function ModelDetailPage({ params, searchParams }: ModelDet
   const backToModelsHref = withLocalePath(locale, backToModelsPath);
   const bodyTypeKey = getBodyTypeTranslationKey(car.bodyType);
   const bodyTypeLabel = bodyTypeKey ? t(bodyTypeKey) : car.bodyType;
+  const localizedCarName = getLocalizedCarName(car, locale);
+  const localizedCarDescription = getLocalizedCarDescription(car, locale);
 
   return (
     <MarketingLayout locale={locale}>
@@ -96,9 +99,9 @@ export default async function ModelDetailPage({ params, searchParams }: ModelDet
               <Badge className="mb-4" variant="secondary">
                 {bodyTypeLabel}
               </Badge>
-              <h1 className="font-display text-4xl font-semibold capitalize">{getLocalizedCarName(car, locale)}</h1>
+              <h1 className="font-display text-4xl font-semibold capitalize">{localizedCarName}</h1>
               <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">
-                {getLocalizedCarDescription(car, locale)}
+                {localizedCarDescription}
               </p>
               <p className="mt-6 text-xl font-semibold">
                 {t("common.from")} {formatUsdPrice(car.priceFrom, locale)}
@@ -140,6 +143,53 @@ export default async function ModelDetailPage({ params, searchParams }: ModelDet
               </dl>
             </CardContent>
           </Card>
+        </div>
+
+        <div className="mt-8">
+          <FinanceCalculator
+            locale={locale}
+            mode="full"
+            currency="USD"
+            context={{ carName: localizedCarName, slug: car.slug }}
+            defaultPrice={car.priceFrom}
+            defaultDownPaymentMode="percent"
+            defaultDownPaymentValue={15}
+            defaultAprPercent={6.9}
+            defaultTermMonths={60}
+            defaultTradeInValue={0}
+            defaultFees={0}
+            labels={{
+              title: t("finance.title"),
+              subtitle: t("finance.subtitle"),
+              expandAriaLabel: t("finance.toggle.expandAria"),
+              collapseAriaLabel: t("finance.toggle.collapseAria"),
+              vehiclePriceLabel: t("finance.fields.vehiclePrice"),
+              downPaymentLabel: t("finance.fields.downPayment"),
+              downPaymentModeAmount: t("finance.fields.downPaymentModeAmount"),
+              downPaymentModePercent: t("finance.fields.downPaymentModePercent"),
+              loanTermLabel: t("finance.fields.loanTerm"),
+              aprLabel: t("finance.fields.apr"),
+              advancedToggleShow: t("finance.fields.advancedShow"),
+              advancedToggleHide: t("finance.fields.advancedHide"),
+              tradeInLabel: t("finance.fields.tradeIn"),
+              feesLabel: t("finance.fields.fees"),
+              monthlyPaymentLabel: t("finance.results.monthlyPayment"),
+              loanPrincipalLabel: t("finance.results.loanPrincipal"),
+              totalPaidLabel: t("finance.results.totalPaid"),
+              totalInterestLabel: t("finance.results.totalInterest"),
+              validationSummaryLabel: t("finance.validation.title"),
+              validationPrincipalPositive: t("finance.validation.principalPositive"),
+              validationAprNonNegative: t("finance.validation.aprNonNegative"),
+              validationTermPositive: t("finance.validation.termPositive"),
+              amortizationTitle: t("finance.schedule.title"),
+              amortizationDescription: t("finance.schedule.description"),
+              monthLabel: t("finance.schedule.month"),
+              principalPaidLabel: t("finance.schedule.principalPaid"),
+              interestPaidLabel: t("finance.schedule.interestPaid"),
+              remainingBalanceLabel: t("finance.schedule.remainingBalance"),
+              termUnit: t("finance.fields.termUnit"),
+            }}
+          />
         </div>
       </section>
     </MarketingLayout>

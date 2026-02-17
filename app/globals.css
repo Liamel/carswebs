@@ -56,7 +56,7 @@ a {
 
 .container-shell {
   margin-inline: auto;
-  width: min(1420px, calc(100vw - 1rem));
+  width: min(1820px, calc(100vw - 1rem));
 }
 
 .hero-shine {

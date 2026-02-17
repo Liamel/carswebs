@@ -17,10 +17,30 @@ Website for showcasing car inventory. Production-ready marketing site and in-app
 
 - `/` Home page with CMS-driven hero/highlights, featured models, and DB-backed homepage slider
 - `/models` Model listing with URL-based sidebar filters (`type` multi-select + featured toggle)
-- `/models/[slug]` Model detail page with specs and gallery placeholders
+- `/models/[slug]` Model detail page with specs, gallery placeholders, and a reusable finance calculator
 - `/book-test-drive` Booking flow with server-side validation + DB persistence
 - `/book-test-drive/success` Success page
 - `/about`, `/contact`
+
+### Finance calculator reuse
+
+Use `FinanceCalculator` from `components/finance/finance-calculator.tsx` and pass translated labels + defaults:
+
+```tsx
+<FinanceCalculator
+  locale={locale}
+  mode="full" // or "compact"
+  currency="USD"
+  defaultPrice={car.priceFrom}
+  defaultDownPaymentMode="percent"
+  defaultDownPaymentValue={15}
+  defaultAprPercent={6.9}
+  defaultTermMonths={60}
+  labels={{ ...translatedFinanceLabels }}
+/>
+```
+
+Math utilities live in `lib/finance/amortization.ts` and can be reused independently from UI.
 
 ### Bookings
 

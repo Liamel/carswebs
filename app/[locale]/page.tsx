@@ -112,12 +112,12 @@ export default async function HomePage({ params }: HomePageProps) {
 
               return (
                 <Card key={car.id} className="h-full overflow-hidden border-border/60 py-0">
-                  <div className="hero-shine border-b border-border/60 p-4">
+                  <div className="hero-shine border-b border-border/60">
                     <div
-                      className="h-40 w-full"
+                      className="h-60 w-full"
                       style={{
                         backgroundImage: car.images[0] ? `url(${car.images[0]})` : undefined,
-                        backgroundSize: "contain",
+                        backgroundSize: "cover",
                         backgroundPosition: "center",
                         backgroundRepeat: "no-repeat",
                       }}
