@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isBookingDateTimeInFutureOrNow, parseBookingDateTime } from "@/lib/bookings/date-time";
+
 export const bookingStatusSchema = z.enum(["PENDING", "CONFIRMED", "CANCELLED"]);
 
 export const bookingSchema = z.object({
@@ -10,7 +12,8 @@ export const bookingSchema = z.object({
   preferredDateTime: z
     .string()
     .trim()
-    .refine((value) => !Number.isNaN(Date.parse(value)), "Invalid preferred date/time"),
+    .refine((value) => parseBookingDateTime(value) !== null, "Invalid preferred date/time")
+    .refine((value) => isBookingDateTimeInFutureOrNow(value), "Preferred date/time cannot be in the past"),
   location: z.string().trim().min(2).max(150),
   note: z.string().trim().max(2000).optional(),
 });

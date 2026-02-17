@@ -1,3 +1,5 @@
+import { formatBookingDateTimeForTelegram } from "@/lib/bookings/date-time";
+
 type NewBookingNotificationInput = {
   bookingId: number;
   name: string;
@@ -44,9 +46,7 @@ function getTelegramConfig(): TelegramConfig | null {
 }
 
 function buildBookingMessage(input: NewBookingNotificationInput) {
-  const preferredDate = Number.isNaN(input.preferredDateTime.getTime())
-    ? "Invalid date"
-    : input.preferredDateTime.toISOString();
+  const preferredDate = formatBookingDateTimeForTelegram(input.preferredDateTime);
   const note = input.note?.trim() ? input.note.trim() : "-";
 
   return [

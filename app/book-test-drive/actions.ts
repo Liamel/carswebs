@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
+import { parseBookingDateTime } from "@/lib/bookings/date-time";
 import { searchCarsBySlugOrName } from "@/lib/db/queries";
 import { bookings } from "@/lib/db/schema";
 import { sendTelegramNewBookingNotification } from "@/lib/notifications/telegram";
@@ -49,7 +50,16 @@ export async function submitBookingAction(
   const selectedCar = parsed.data.preferredModel
     ? await searchCarsBySlugOrName(parsed.data.preferredModel)
     : null;
-  const preferredDateTime = new Date(parsed.data.preferredDateTime);
+  const preferredDateTime = parseBookingDateTime(parsed.data.preferredDateTime);
+
+  if (!preferredDateTime) {
+    return {
+      error: "Please review the highlighted fields.",
+      fieldErrors: {
+        preferredDateTime: ["Invalid preferred date/time"],
+      },
+    };
+  }
 
   const [created] = await db
     .insert(bookings)
